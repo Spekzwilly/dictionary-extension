@@ -72,4 +72,4 @@ verification.
 
 - [x] 11.1 Delete the prototype pages (`src/pages/PopupPage.tsx`, `ReviewPage.tsx`, `BankPage.tsx`, `data/mockWords.ts`) and all prototype-only routes. Verify: `pnpm build` succeeds with no references to prototype files.
 - [x] 11.2 Write the extension manifest (via WXT config): request only necessary permissions — `storage`, `activeTab`, host permissions `*://*/*`. Verify: `pnpm build` produces a `manifest.json` with exactly those permissions and no extras.
-- [ ] 11.3 Load the built extension in Chrome via `chrome://extensions` and run an end-to-end smoke test covering acceptance criteria: select a word → popup appears with underline → save it → open Vocab Bank → word appears with correct encounter → open Review → word appears in session. Verify all steps pass without console errors.
+- [x] 11.3 Load the built extension in Chrome via `chrome://extensions` and run an end-to-end smoke test covering acceptance criteria: select a word → popup appears with underline → save it → open Vocab Bank → word appears with correct encounter → open Review → word appears in session. Verify all steps pass without console errors.
