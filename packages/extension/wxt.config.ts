@@ -13,7 +13,7 @@ export default defineConfig({
     permissions: ['storage', 'activeTab', 'identity'],
     host_permissions: ['*://*/*'],
     oauth2: {
-      client_id: '972529476069-bt0cij7r8g1lt4qpebaclqetkqlqcd3h.apps.googleusercontent.com',
+      client_id: '972529476069-g3278atkm9miijauqpv4p8a9vpuvll12.apps.googleusercontent.com',
       scopes: ['openid', 'email', 'profile'],
     },
     icons: {

@@ -1,34 +1,81 @@
 # Dictionary Extension — Claude Instructions
 
+## Monorepo Structure
+
+npm workspaces monorepo with three packages:
+
+| Package | Path | Purpose |
+|---------|------|---------|
+| `@dictionary/shared` | `packages/shared/` | Shared types (`VocabEntry`, `Encounter`, `DefinitionData`) and review session logic (`createSession`, `rateCard`, `isSessionComplete`) |
+| `@dictionary/extension` | `packages/extension/` | Chrome extension (WXT + React) |
+| `@dictionary/web` | `packages/web/` | PWA web app (React + Vite + Tailwind) |
+
 ## Build & Test
 
 ```bash
-npm run build    # build → .output/chrome-mv3/
-npm test         # unit tests (Vitest)
+# From repo root — builds all three packages
+npm run build
+
+# Individual packages
+npm run build --workspace=@dictionary/shared
+npm run build --workspace=@dictionary/extension
+npm run build --workspace=@dictionary/web
+
+# Extension tests
+npm test --workspace=@dictionary/extension
+
+# Web app dev server
+cd packages/web && npm run dev -- --port 5174
 ```
 
-After rebuilding: go to `chrome://extensions`, click the reload icon on the extension, then reload the webpage under test.
+After rebuilding extension: go to `chrome://extensions`, click the reload icon, then reload the webpage under test.
+
+## Environment Variables
+
+Both `packages/extension/.env` and `packages/web/.env` need:
+```
+VITE_SUPABASE_URL=https://abqfnjodchdjeburhqpb.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key from Supabase Dashboard → Settings → API>
+```
 
 ## Architecture
+
+### Extension (`packages/extension/`)
 
 **WXT** manages the extension scaffold (Manifest V3). Four entrypoints:
 - `entrypoints/content.ts` — content script, shadow DOM popup
 - `entrypoints/popup/` — toolbar popup (word count)
-- `entrypoints/vocab-bank/` — full vocab bank page
+- `entrypoints/vocab-bank/` — full vocab bank page (auth UI, export/import JSON)
 - `entrypoints/review/` — flashcard review page
 
-**Shadow DOM popup** — the content script mounts a React component inside a shadow root on `document.body` so host-page CSS cannot affect the popup. Tailwind CSS is injected via `?inline` import of `lib/popup-styles.css`.
+**Auth** — `lib/auth.ts`: Google OAuth via `chrome.identity.launchWebAuthFlow()` → OIDC id_token → `supabase.auth.signInWithIdToken()`. Session stored in `chrome.storage.local` via custom Supabase storage adapter in `lib/supabase.ts`.
 
-**Storage** — `chrome.storage.local` only, word-keyed flat map under key `'vocab'`. No backend.
+**Storage** — `lib/vocab-storage.ts`: writes to `chrome.storage.local` always; additionally upserts to Supabase `vocab_entries` when signed in. Reads from Supabase when signed in, local when signed out.
 
 **Dictionary API** — `api.dictionaryapi.dev`, no key, returns `WordDefinition | NotFound` (never throws).
 
+### Web App (`packages/web/`)
+
+React + Vite SPA. Routes: `/login`, `/vocab`, `/review`. Route guard redirects unauthenticated users to `/login`. Auth via Supabase OAuth redirect flow (`lib/auth.tsx`).
+
+### Shared (`packages/shared/`)
+
+Plain TypeScript, no build step needed — Vite in consuming packages compiles it directly. Exports via `src/index.ts`.
+
+## Supabase
+
+- Project: `https://abqfnjodchdjeburhqpb.supabase.co`
+- Migration: `supabase/migrations/0001_vocab_entries.sql` — `vocab_entries` table with RLS (per-user isolation via `auth.uid() = user_id`)
+- Google OAuth client ID (Web Application): `972529476069-g3278atkm9miijauqpv4p8a9vpuvll12.apps.googleusercontent.com`
+
 ## Key Gotchas
 
-- `cssInjectionMode: 'ui'` is set on the content script — WXT won't auto-inject CSS into the page. CSS must be manually injected into the shadow root.
-- `@tailwindcss/vite` **must** be registered in `wxt.config.ts` under `vite.plugins`. Without it, `@import "tailwindcss"` only pulls in theme variables; utility classes are never generated.
-- When setting inline styles on the shadow host, **never put `all: initial` last** in an `Object.assign`. `all` is a CSS shorthand that resets every property; if declared last, it overrides `position: fixed` and `z-index`, making the popup invisible.
-- `lib/popup-styles.css` lives outside `entrypoints/` to avoid WXT treating it as a duplicate `content` entrypoint (WXT uses the base name to identify entrypoints).
+- `cssInjectionMode: 'ui'` is set on the content script — CSS must be manually injected into the shadow root.
+- `@tailwindcss/vite` **must** be registered in `wxt.config.ts` under `vite.plugins`.
+- When setting inline styles on the shadow host, **never put `all: initial` last** in an `Object.assign` — it overrides `position: fixed` and `z-index`, making the popup invisible.
+- `lib/popup-styles.css` lives outside `entrypoints/` to avoid WXT treating it as a duplicate `content` entrypoint.
+- `chrome.identity.getAuthToken()` returns an access token, not an OIDC id_token. Use `launchWebAuthFlow()` to get an id_token that Supabase's `signInWithIdToken` accepts.
+- The Google OAuth redirect URI for the Supabase callback must be added to the Google OAuth credential: `https://abqfnjodchdjeburhqpb.supabase.co/auth/v1/callback`
 
 ## Spectra
 
