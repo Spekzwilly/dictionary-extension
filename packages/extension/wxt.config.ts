@@ -12,6 +12,10 @@ export default defineConfig({
     description: 'Look up English words while reading and save them to your vocab bank.',
     permissions: ['storage', 'activeTab', 'identity'],
     host_permissions: ['*://*/*'],
+    oauth2: {
+      client_id: '972529476069-bt0cij7r8g1lt4qpebaclqetkqlqcd3h.apps.googleusercontent.com',
+      scopes: ['openid', 'email', 'profile'],
+    },
     icons: {
       16: 'icon-16.png',
       32: 'icon-32.png',
