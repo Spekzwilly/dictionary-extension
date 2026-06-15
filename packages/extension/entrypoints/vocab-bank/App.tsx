@@ -186,7 +186,7 @@ export default function VocabBankApp() {
             </>
           ) : (
             <>
-              <span className="text-xs text-gray-400">Not signed in — words saved locally</span>
+              <span className="text-xs text-gray-400">Sign in to load and sync your vocab bank</span>
               <button
                 onClick={handleSignIn}
                 className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
