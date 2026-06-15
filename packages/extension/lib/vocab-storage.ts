@@ -66,61 +66,6 @@ export async function deleteWord(word: string): Promise<void> {
   await setAll(map)
 }
 
-export async function exportVocab(): Promise<void> {
-  const words = await getAllWords()
-  const json = JSON.stringify(words, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const date = new Date().toISOString().slice(0, 10)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `vocab-export-${date}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-export type ImportResult = { imported: number; skipped: number }
-
-export async function importVocab(file: File): Promise<ImportResult> {
-  const text = await file.text()
-  const entries: unknown[] = JSON.parse(text)
-  if (!Array.isArray(entries)) throw new Error('Invalid format: expected an array')
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Must be signed in to import')
-
-  let imported = 0
-  let skipped = 0
-
-  for (const entry of entries) {
-    if (!isValidVocabEntry(entry)) { skipped++; continue }
-
-    // Fetch existing encounters to deduplicate
-    const { data: existing } = await supabase
-      .from('vocab_entries')
-      .select('encounters')
-      .eq('word', entry.word)
-      .single()
-
-    const existingEncounters: Encounter[] = existing?.encounters ?? []
-    const existingSavedAts = new Set(existingEncounters.map(e => e.savedAt))
-    const newEncounters = entry.encounters.filter(e => !existingSavedAts.has(e.savedAt))
-    const mergedEncounters = [...existingEncounters, ...newEncounters]
-
-    const { error } = await supabase
-      .from('vocab_entries')
-      .upsert(
-        { user_id: user.id, word: entry.word, definition: entry.definition, encounters: mergedEncounters },
-        { onConflict: 'user_id,word' }
-      )
-
-    if (error) { skipped++; continue }
-    imported++
-  }
-
-  return { imported, skipped }
-}
-
 async function upsertToSupabase(entry: VocabEntry): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
@@ -142,14 +87,4 @@ async function upsertToSupabase(entry: VocabEntry): Promise<void> {
       { user_id: user.id, word: entry.word, definition: entry.definition, encounters: mergedEncounters, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,word' }
     )
-}
-
-function isValidVocabEntry(e: unknown): e is VocabEntry {
-  if (typeof e !== 'object' || e === null) return false
-  const v = e as Record<string, unknown>
-  return (
-    typeof v.word === 'string' &&
-    typeof v.definition === 'object' && v.definition !== null &&
-    Array.isArray(v.encounters)
-  )
 }

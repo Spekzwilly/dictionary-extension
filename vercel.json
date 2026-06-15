@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build --workspace=@dictionary/web",
+  "outputDirectory": "packages/web/dist",
+  "installCommand": "rm -f package-lock.json && npm install",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
