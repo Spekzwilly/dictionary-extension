@@ -14,6 +14,16 @@ const chromeMock = {
 }
 vi.stubGlobal('chrome', chromeMock)
 
+// Mock the supabase client so importing vocab-storage never creates a real
+// client (which would fire async session loading against the chrome stub and
+// leak an unhandled error). getUser returns no user → the signed-out path,
+// which is what these local-storage tests exercise.
+vi.mock('../supabase', () => ({
+  supabase: {
+    auth: { getUser: async () => ({ data: { user: null } }) },
+  },
+}))
+
 import { saveWord, getAllWords, deleteWord } from '../vocab-storage'
 import type { WordDefinition } from '@dictionary/shared'
 

@@ -2,6 +2,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { createElement, useState, useEffect } from 'react'
 import { lookupWord } from '../lib/dictionary-service'
 import { saveWord } from '../lib/vocab-storage'
+import { hasSession } from '../lib/auth'
 import { DefinitionPopup } from '../lib/components/DefinitionPopup'
 import type { WordDefinition, NotFound, Loading } from '@dictionary/shared'
 // @ts-expect-error — ?inline returns CSS string, not a module
@@ -66,17 +67,40 @@ export default defineContentScript({
     function PopupWrapper({ word, url, sentence }: { word: string; url: string; sentence: string }) {
       const [popupState, setPopupState] = useState<WordDefinition | NotFound | Loading>({ type: 'loading' })
       const [saved, setSaved] = useState(false)
+      const [signedIn, setSignedIn] = useState(false)
+      const [signingIn, setSigningIn] = useState(false)
 
       useEffect(() => {
         lookupWord(word).then(setPopupState)
       }, [word])
+
+      useEffect(() => {
+        hasSession().then(setSignedIn)
+      }, [])
 
       function handleSave() {
         if ('type' in popupState) return
         saveWord(popupState, { url, sentence }).then(() => setSaved(true))
       }
 
-      return createElement(DefinitionPopup, { state: popupState, onSave: handleSave, saved })
+      // Content scripts can't run chrome.identity, so delegate OAuth to the
+      // background worker; re-check the session on success to reveal Save.
+      function handleSignIn() {
+        setSigningIn(true)
+        chrome.runtime.sendMessage({ type: 'sign-in' }, (res) => {
+          setSigningIn(false)
+          if (res?.ok) hasSession().then(setSignedIn)
+        })
+      }
+
+      return createElement(DefinitionPopup, {
+        state: popupState,
+        onSave: handleSave,
+        saved,
+        signedIn,
+        onSignIn: handleSignIn,
+        signingIn,
+      })
     }
 
     function mountPopup(word: string, x: number, y: number, url: string, sentence: string) {

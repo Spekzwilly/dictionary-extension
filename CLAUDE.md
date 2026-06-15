@@ -30,6 +30,8 @@ cd packages/web && npm run dev -- --port 5174
 
 After rebuilding extension: go to `chrome://extensions`, click the reload icon, then reload the webpage under test.
 
+**Load unpacked from `packages/extension/.output/chrome-mv3` ONLY.** The build writes there. A stale pre-monorepo `.output/chrome-mv3` can linger at the repo root — loading that one means reloads never pick up new builds. Verify the extension card's "Loaded from" path points at the package folder, not the repo root.
+
 ## Environment Variables
 
 Both `packages/extension/.env` and `packages/web/.env` need:
@@ -42,15 +44,16 @@ VITE_SUPABASE_ANON_KEY=<anon key from Supabase Dashboard → Settings → API>
 
 ### Extension (`packages/extension/`)
 
-**WXT** manages the extension scaffold (Manifest V3). Four entrypoints:
-- `entrypoints/content.ts` — content script, shadow DOM popup
-- `entrypoints/popup/` — toolbar popup (word count)
-- `entrypoints/vocab-bank/` — full vocab bank page (auth UI, export/import JSON)
+**WXT** manages the extension scaffold (Manifest V3). Five entrypoints:
+- `entrypoints/content.ts` — content script, shadow DOM popup (definition + Save / sign-in)
+- `entrypoints/popup/` — toolbar popup: **auth gateway** (signed out → Google sign-in) + **status** (signed in → vocab count, Open Vocab Bank, Review, Sign out)
+- `entrypoints/vocab-bank/` — full vocab bank page (own sign-in on direct URL, word list, export/import JSON)
 - `entrypoints/review/` — flashcard review page
+- `entrypoints/background.ts` — service worker; runs OAuth on behalf of the content script (content scripts can't access `chrome.identity`)
 
-**Auth** — `lib/auth.ts`: Google OAuth via `chrome.identity.launchWebAuthFlow()` → OIDC id_token → `supabase.auth.signInWithIdToken()`. Session stored in `chrome.storage.local` via custom Supabase storage adapter in `lib/supabase.ts`.
+**Auth** — `lib/auth.ts`: Google OAuth via `chrome.identity.launchWebAuthFlow()` → OIDC id_token → `supabase.auth.signInWithIdToken()`. Sign-in is reachable from **all three surfaces**: the toolbar popup and vocab-bank page sign in directly; the in-page popup sends a `{ type: 'sign-in' }` message to `background.ts` which performs the flow. `hasSession()` is a fast, network-free signed-in check (Supabase `getSession`) used by every surface. Session stored in `chrome.storage.local` via custom Supabase storage adapter in `lib/supabase.ts`.
 
-**Storage** — `lib/vocab-storage.ts`: writes to `chrome.storage.local` always; additionally upserts to Supabase `vocab_entries` when signed in. Reads from Supabase when signed in, local when signed out.
+**Storage** — `lib/vocab-storage.ts`: **saving requires being signed in** — the definition popup only offers Save when authenticated (signed-out shows a Google button instead). Saves write to `chrome.storage.local` and upsert to Supabase `vocab_entries`. Reads from Supabase when signed in, local when signed out.
 
 **Dictionary API** — `api.dictionaryapi.dev`, no key, returns `WordDefinition | NotFound` (never throws).
 
@@ -76,6 +79,8 @@ Plain TypeScript, no build step needed — Vite in consuming packages compiles i
 - `lib/popup-styles.css` lives outside `entrypoints/` to avoid WXT treating it as a duplicate `content` entrypoint.
 - `chrome.identity.getAuthToken()` returns an access token, not an OIDC id_token. Use `launchWebAuthFlow()` to get an id_token that Supabase's `signInWithIdToken` accepts.
 - The Google OAuth redirect URI for the Supabase callback must be added to the Google OAuth credential: `https://abqfnjodchdjeburhqpb.supabase.co/auth/v1/callback`
+- **Extension OAuth redirect URI:** `launchWebAuthFlow` redirects to `https://<EXTENSION_ID>.chromiumapp.org/` — this exact URL (get it via `chrome.identity.getRedirectURL()`) must be registered under **Authorized redirect URIs** on the Google Web client. The extension ID changes if you load-unpacked from a different path, which invalidates the registration.
+- **OAuth nonce:** Supabase SHA-256-hashes the `nonce` passed to `signInWithIdToken` and compares it to the id_token's `nonce` claim. So send the **hashed** nonce (`sha256Hex`) to Google and the **raw** nonce to Supabase. Omitting the nonce on the Supabase call throws "Passed nonce and nonce in id_token should either both exist or not."
 
 ## Spectra
 

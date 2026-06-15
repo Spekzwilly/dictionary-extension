@@ -1,0 +1,63 @@
+# Dictionary
+
+Look up English words while reading and build a cloud-synced vocab bank you can review as flashcards. A monolingual (EN→EN) dictionary for learning English *in* English — every saved word keeps the real sentence and article you found it in.
+
+## Packages
+
+npm workspaces monorepo:
+
+| Package | Path | Purpose |
+|---------|------|---------|
+| `@dictionary/shared` | `packages/shared/` | Shared types (`VocabEntry`, `Encounter`, `DefinitionData`) + review-session logic |
+| `@dictionary/extension` | `packages/extension/` | Chrome extension (WXT + React) |
+| `@dictionary/web` | `packages/web/` | PWA web app (React + Vite + Tailwind) |
+
+Backend is Supabase (Postgres + Google OAuth + per-user RLS).
+
+## User flow (Chrome extension)
+
+Signing in is **required to save** — saved words sync to the cloud so you can review them anywhere.
+
+1. **Install** the extension and click its toolbar icon.
+2. The popup shows **Sign in with Google**. Click it → a Google OAuth window opens → consent → the window closes and the popup shows your vocab status.
+3. **Look up a word:** select 1–3 words on any page → a popup shows the definition, part of speech, and an example.
+   - Signed in → **Save to Vocab Bank** (records the word, the page URL, and the surrounding sentence).
+   - Signed out → **Sign in with Google to save** (no anonymous local-only saving).
+4. The toolbar popup (signed in) shows: **vocab count**, **Open Vocab Bank**, **Review →**, and **Sign out**.
+5. **Vocab Bank page:** search, expand a word to see its definition + every encounter, delete words, and **Export / Import** the bank as JSON.
+6. **Review page:** a session draws 10 random words; flip each flashcard and rate Easy / Hard / Again (Again loops back in the session).
+
+The same word can be saved from multiple articles — each save appends an *encounter*, so review shows you every real sentence you met it in, not a generic example.
+
+### Where sign-in lives
+
+Sign-in is reachable from all three surfaces — the **toolbar popup**, the **in-page definition popup**, and the **Vocab Bank page** (for direct-URL access). The toolbar popup and Vocab Bank page run OAuth directly; the in-page popup delegates to a background service worker (content scripts can't use `chrome.identity`).
+
+## Develop & build
+
+```bash
+# Build all packages from the repo root
+npm run build
+
+# Extension only
+npm run build --workspace=@dictionary/extension
+npm test  --workspace=@dictionary/extension
+
+# Web app dev server
+cd packages/web && npm run dev -- --port 5174
+```
+
+**Loading the extension:** after building, go to `chrome://extensions` (Developer mode on) → **Load unpacked** → select `packages/extension/.output/chrome-mv3`. After a rebuild, click the card's reload icon. (Always load from the package's `.output` — not any stale `.output` at the repo root.)
+
+### Environment variables
+
+Both `packages/extension/.env` and `packages/web/.env` need:
+
+```
+VITE_SUPABASE_URL=https://abqfnjodchdjeburhqpb.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key from Supabase Dashboard → Settings → API>
+```
+
+## Conventions
+
+This project uses [Spectra](https://github.com/) spec-driven development — specs in `openspec/specs/`, change proposals in `openspec/changes/`. See `CLAUDE.md` for architecture details and hard-won gotchas (OAuth redirect URIs, the OAuth nonce, shadow-DOM styling, etc.).
