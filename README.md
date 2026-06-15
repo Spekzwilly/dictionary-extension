@@ -2,6 +2,8 @@
 
 Look up English words while reading and build a cloud-synced vocab bank you can review as flashcards. A monolingual (EN→EN) dictionary for learning English *in* English — every saved word keeps the real sentence and article you found it in.
 
+**Standalone web app (review on any device):** https://dictionary-extension.vercel.app — the extension's "Open Vocab Bank" / "Review" buttons open this deployed site.
+
 ## Packages
 
 npm workspaces monorepo:
@@ -23,15 +25,15 @@ Signing in is **required to save** — saved words sync to the cloud so you can 
 3. **Look up a word:** select 1–3 words on any page → a popup shows the definition, part of speech, and an example.
    - Signed in → **Save to Vocab Bank** (records the word, the page URL, and the surrounding sentence).
    - Signed out → **Sign in with Google to save** (no anonymous local-only saving).
-4. The toolbar popup (signed in) shows: **vocab count**, **Open Vocab Bank**, **Review →**, and **Sign out**.
-5. **Vocab Bank page:** search, expand a word to see its definition + every encounter, delete words, and **Export / Import** the bank as JSON.
-6. **Review page:** a session draws 10 random words; flip each flashcard and rate Easy / Hard / Again (Again loops back in the session).
+4. The toolbar popup (signed in) shows: **vocab count**, **Open Vocab Bank**, **Review →**, and **Sign out**. "Open Vocab Bank" and "Review →" open the deployed standalone web app (above) in a new tab.
+5. **Vocab Bank (web app):** search, expand a word to see its definition + every encounter.
+6. **Review (web app):** a session draws 10 random words; flip each flashcard and rate Easy / Hard / Again (Again loops back in the session).
 
 The same word can be saved from multiple articles — each save appends an *encounter*, so review shows you every real sentence you met it in, not a generic example.
 
 ### Where sign-in lives
 
-Sign-in is reachable from all three surfaces — the **toolbar popup**, the **in-page definition popup**, and the **Vocab Bank page** (for direct-URL access). The toolbar popup and Vocab Bank page run OAuth directly; the in-page popup delegates to a background service worker (content scripts can't use `chrome.identity`).
+Sign-in is reachable from the **toolbar popup**, the **in-page definition popup**, and the **web app** (which keeps its own session). The toolbar popup runs OAuth directly; the in-page popup delegates to a background service worker (content scripts can't use `chrome.identity`); the web app signs in separately (one-time per browser). The extension no longer ships internal bank/review pages — the deployed web app is the single bank/review surface, and JSON export/import has been retired.
 
 ## Develop & build
 

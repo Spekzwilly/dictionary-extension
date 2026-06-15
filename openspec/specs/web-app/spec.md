@@ -104,3 +104,79 @@ The web app SHALL redirect unauthenticated requests for `/vocab` and `/review` t
 
 - **WHEN** unauthenticated user navigates directly to `/vocab` or `/review`
 - **THEN** the app SHALL redirect to `/login`
+
+---
+### Requirement: Public deployment with client-side route serving
+
+The web app SHALL be deployed to a public HTTPS URL and SHALL serve the SPA's `index.html` for all application routes, so client-side routing works on direct navigation and refresh. Deployment SHALL update automatically when changes land on the `main` branch.
+
+#### Scenario: Deployed app is reachable
+
+- **WHEN** a user opens the public deployment URL
+- **THEN** the web app SHALL load and route to the login page when signed out
+
+#### Scenario: Deep link survives refresh
+
+- **WHEN** a user navigates directly to `/vocab` or `/review`, or refreshes while on one of those routes
+- **THEN** the host SHALL serve the SPA and the client SHALL render that route (not a 404)
+
+#### Scenario: Auto-deploy on main
+
+- **WHEN** changes are pushed to the `main` branch
+- **THEN** the public deployment SHALL rebuild and update automatically
+
+
+<!-- @trace
+source: deploy-standalone-vocab-bank
+updated: 2026-06-15
+code:
+  - packages/extension/entrypoints/vocab-bank/App.tsx
+  - packages/extension/entrypoints/review/App.tsx
+  - packages/extension/entrypoints/vocab-bank/index.html
+  - packages/extension/entrypoints/vocab-bank/main.tsx
+  - packages/extension/lib/web-app-url.ts
+  - packages/extension/entrypoints/vocab-bank/style.css
+  - packages/extension/lib/vocab-storage.ts
+  - vercel.json
+  - packages/extension/entrypoints/review/index.html
+  - deploy-standalone-vocab-bank-prd.md
+  - packages/extension/entrypoints/review/main.tsx
+  - packages/extension/entrypoints/review/style.css
+  - dictionary-extension-prd.md
+  - packages/extension/entrypoints/popup/App.tsx
+tests:
+  - packages/extension/lib/__tests__/web-app-url.test.ts
+-->
+
+---
+### Requirement: Production authentication redirect
+
+The deployed web app SHALL complete Google OAuth against its production origin and return the user to the deployed app signed in.
+
+#### Scenario: Sign in on the deployed app
+
+- **WHEN** a signed-out user signs in with Google on the deployed app
+- **THEN** after consent the browser SHALL return to the deployed origin with a Supabase session established
+- **THEN** the user's vocab bank SHALL load from Supabase
+
+<!-- @trace
+source: deploy-standalone-vocab-bank
+updated: 2026-06-15
+code:
+  - packages/extension/entrypoints/vocab-bank/App.tsx
+  - packages/extension/entrypoints/review/App.tsx
+  - packages/extension/entrypoints/vocab-bank/index.html
+  - packages/extension/entrypoints/vocab-bank/main.tsx
+  - packages/extension/lib/web-app-url.ts
+  - packages/extension/entrypoints/vocab-bank/style.css
+  - packages/extension/lib/vocab-storage.ts
+  - vercel.json
+  - packages/extension/entrypoints/review/index.html
+  - deploy-standalone-vocab-bank-prd.md
+  - packages/extension/entrypoints/review/main.tsx
+  - packages/extension/entrypoints/review/style.css
+  - dictionary-extension-prd.md
+  - packages/extension/entrypoints/popup/App.tsx
+tests:
+  - packages/extension/lib/__tests__/web-app-url.test.ts
+-->

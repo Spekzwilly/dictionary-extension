@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAllWords } from '../../lib/vocab-storage'
 import { hasSession, signInWithGoogle, signOut } from '../../lib/auth'
+import { vocabBankUrl, reviewUrl } from '../../lib/web-app-url'
 import { cn } from '../../lib/utils'
 
 export default function PopupApp() {
@@ -44,8 +45,12 @@ export default function PopupApp() {
     await refresh()
   }
 
-  function openPage(page: 'vocab-bank' | 'review') {
-    chrome.tabs.create({ url: chrome.runtime.getURL(`${page}.html`) })
+  // Open the deployed standalone web app (not an extension-internal page).
+  function openVocabBank() {
+    chrome.tabs.create({ url: vocabBankUrl() })
+  }
+  function openReview() {
+    chrome.tabs.create({ url: reviewUrl() })
   }
 
   if (authLoading) {
@@ -90,7 +95,7 @@ export default function PopupApp() {
         <p className="text-xs text-gray-400">{wordCount === 1 ? 'word saved' : 'words saved'}</p>
       </div>
       <button
-        onClick={() => openPage('vocab-bank')}
+        onClick={openVocabBank}
         className={cn(
           'w-full py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer',
           'border border-gray-200 text-gray-700 hover:bg-gray-50'
@@ -99,7 +104,7 @@ export default function PopupApp() {
         Open Vocab Bank
       </button>
       <button
-        onClick={() => openPage('review')}
+        onClick={openReview}
         className={cn(
           'w-full py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer',
           'bg-indigo-600 hover:bg-indigo-700 text-white'
