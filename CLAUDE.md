@@ -44,14 +44,14 @@ VITE_SUPABASE_ANON_KEY=<anon key from Supabase Dashboard → Settings → API>
 
 ### Extension (`packages/extension/`)
 
-**WXT** manages the extension scaffold (Manifest V3). Three entrypoints:
-- `entrypoints/content.ts` — content script, shadow DOM popup (definition + Save / sign-in)
+**WXT** manages the extension scaffold (Manifest V3). Entrypoints (no background service worker):
+- `entrypoints/content.ts` — content script on `*://*/*`, shadow DOM popup (definition + Save / sign-in). Also listens to `chrome.storage.onChanged` to reveal Save the moment a session is synced in.
+- `entrypoints/web-bridge.content.ts` — content script scoped **only** to the web app origins (`https://dictionary-extension.vercel.app/*`, `http://localhost/*`); receives the session handoff `postMessage` from the web app and persists it via `supabase.auth.setSession()`.
 - `entrypoints/popup/` — toolbar popup: **auth gateway** (signed out → Google sign-in) + **status** (signed in → vocab count, Open Vocab Bank, Review, Sign out). "Open Vocab Bank" / "Review" open the deployed web app (`VITE_WEB_APP_URL` + `/vocab` `/review`, via `lib/web-app-url.ts`).
-- `entrypoints/background.ts` — service worker; runs OAuth on behalf of the content script (content scripts can't access `chrome.identity`)
 
 The bank/review UI lives **only** in the web app now — the former internal `vocab-bank.html` / `review.html` pages and JSON export/import are retired.
 
-**Auth** — `lib/auth.ts`: Google OAuth via `chrome.identity.launchWebAuthFlow()` → OIDC id_token → `supabase.auth.signInWithIdToken()`. Sign-in is reachable from the toolbar popup (direct) and the in-page popup (sends a `{ type: 'sign-in' }` message to `background.ts`, which performs the flow). `hasSession()` is a fast, network-free signed-in check (Supabase `getSession`) used by every surface. Session stored in `chrome.storage.local` via custom Supabase storage adapter in `lib/supabase.ts`. The web app keeps its own separate session.
+**Auth** — the extension no longer runs OAuth itself. Both Google buttons (toolbar popup via `chrome.tabs.create`, in-page popup via `window.open`) open the web app login at `loginUrl()` = `<VITE_WEB_APP_URL>/login?ext=1`. The web app runs full-page Google OAuth, then broadcasts its session via `window.postMessage`; the `web-bridge` content script validates origin/source/shape (`isTrustedSessionMessage` from `@dictionary/shared`) and calls `setSession()` to persist into `chrome.storage.local`. Sign-out is **web-app-authoritative**: web app `SIGNED_OUT` broadcasts a clear that the bridge applies; extension Sign-out clears only the extension. `lib/auth.ts` is now just `getUser`/`hasSession`/`signOut` (`hasSession()` is the fast, network-free `getSession` check used by every surface). The web app keeps its own separate session; the bridge syncs it into the extension at sign-in/sign-out.
 
 **Storage** — `lib/vocab-storage.ts`: **saving requires being signed in** — the definition popup only offers Save when authenticated (signed-out shows a Google button instead). Saves write to `chrome.storage.local` and upsert to Supabase `vocab_entries`. Reads from Supabase when signed in, local when signed out.
 
@@ -59,7 +59,7 @@ The bank/review UI lives **only** in the web app now — the former internal `vo
 
 ### Web App (`packages/web/`)
 
-React + Vite SPA, the canonical bank/review surface (opened from the extension popup). **Deployed:** https://dictionary-extension.vercel.app (Vercel, GitHub-connected → auto-deploy on `main`). Routes: `/login`, `/vocab`, `/review`. Route guard redirects unauthenticated users to `/login`. Auth via Supabase OAuth redirect flow (`lib/auth.tsx`). Deploy config is the repo-root `vercel.json` (build from root so the `@dictionary/shared` workspace resolves; SPA rewrite so deep links don't 404).
+React + Vite SPA, the canonical bank/review surface (opened from the extension popup) **and the single OAuth implementation** for both surfaces. **Deployed:** https://dictionary-extension.vercel.app (Vercel, GitHub-connected → auto-deploy on `main`). Routes: `/login`, `/vocab`, `/review`. Route guard redirects unauthenticated users to `/login`. Auth via Supabase OAuth redirect flow (`lib/auth.tsx`). `/login?ext=1` (opened from the extension) **auto-starts** Google OAuth and, on `SIGNED_IN`, broadcasts the session to the extension bridge (`lib/login-flow.ts`; broadcasts only on real `SIGNED_IN`/`SIGNED_OUT` events, never `INITIAL_SESSION`/`TOKEN_REFRESHED`). Deploy config is the repo-root `vercel.json` (build from root so the `@dictionary/shared` workspace resolves; SPA rewrite so deep links don't 404). **Deploy ordering:** web app changes must be live before a new extension build for the handoff to work end-to-end.
 
 ### Shared (`packages/shared/`)
 
@@ -77,10 +77,9 @@ Plain TypeScript, no build step needed — Vite in consuming packages compiles i
 - `@tailwindcss/vite` **must** be registered in `wxt.config.ts` under `vite.plugins`.
 - When setting inline styles on the shadow host, **never put `all: initial` last** in an `Object.assign` — it overrides `position: fixed` and `z-index`, making the popup invisible.
 - `lib/popup-styles.css` lives outside `entrypoints/` to avoid WXT treating it as a duplicate `content` entrypoint.
-- `chrome.identity.getAuthToken()` returns an access token, not an OIDC id_token. Use `launchWebAuthFlow()` to get an id_token that Supabase's `signInWithIdToken` accepts.
-- The Google OAuth redirect URI for the Supabase callback must be added to the Google OAuth credential: `https://abqfnjodchdjeburhqpb.supabase.co/auth/v1/callback`
-- **Extension OAuth redirect URI:** `launchWebAuthFlow` redirects to `https://<EXTENSION_ID>.chromiumapp.org/` — this exact URL (get it via `chrome.identity.getRedirectURL()`) must be registered under **Authorized redirect URIs** on the Google Web client. The extension ID changes if you load-unpacked from a different path, which invalidates the registration.
-- **OAuth nonce:** Supabase SHA-256-hashes the `nonce` passed to `signInWithIdToken` and compares it to the id_token's `nonce` claim. So send the **hashed** nonce (`sha256Hex`) to Google and the **raw** nonce to Supabase. Omitting the nonce on the Supabase call throws "Passed nonce and nonce in id_token should either both exist or not."
+- The Google OAuth redirect URI for the Supabase callback must be added to the Google OAuth credential: `https://abqfnjodchdjeburhqpb.supabase.co/auth/v1/callback` (used by the **web app's** OAuth redirect flow — the extension no longer runs its own OAuth).
+- **Extension sign-in is web-app-delegated.** The extension has no `identity` permission, no `oauth2` manifest block, and no background worker. Sign-in opens `<VITE_WEB_APP_URL>/login?ext=1`; the session comes back via the `web-bridge` content script's `postMessage` handoff. Content scripts can't use `chrome.tabs`, so the in-page popup opens the login tab with `window.open` (the toolbar popup uses `chrome.tabs.create`).
+- **Session-handoff security:** the `web-bridge` content script is scoped to the web app origins only AND re-checks `event.origin` (allowlist) + `event.source === window` + message shape before honoring a handoff — otherwise any page could `postMessage` an attacker's tokens (session fixation). Logic + allowlist live in `@dictionary/shared` (`session-handoff.ts`).
 - **Vercel build + Vite 8 / Rolldown native binding:** the web build fails on Vercel's Linux with `Cannot find module '@rolldown/binding-linux-x64-gnu'` — the npm optional-deps bug (npm/cli#4828) when the lockfile was generated on macOS. Fix is in `vercel.json`: `installCommand` is `rm -f package-lock.json && npm install` so npm resolves the platform binding fresh on Linux.
 
 ## Spectra

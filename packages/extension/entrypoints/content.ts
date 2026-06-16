@@ -3,6 +3,7 @@ import { createElement, useState, useEffect } from 'react'
 import { lookupWord } from '../lib/dictionary-service'
 import { saveWord } from '../lib/vocab-storage'
 import { hasSession } from '../lib/auth'
+import { loginUrl } from '../lib/web-app-url'
 import { DefinitionPopup } from '../lib/components/DefinitionPopup'
 import type { WordDefinition, NotFound, Loading } from '@dictionary/shared'
 // @ts-expect-error — ?inline returns CSS string, not a module
@@ -76,6 +77,15 @@ export default defineContentScript({
 
       useEffect(() => {
         hasSession().then(setSignedIn)
+
+        // The session is minted on the web app and handed back into
+        // chrome.storage.local by the bridge. Re-check on any storage change so
+        // Save appears here without the user re-selecting the word.
+        function onStorageChanged() {
+          hasSession().then(setSignedIn)
+        }
+        chrome.storage.onChanged.addListener(onStorageChanged)
+        return () => chrome.storage.onChanged.removeListener(onStorageChanged)
       }, [])
 
       function handleSave() {
@@ -83,14 +93,12 @@ export default defineContentScript({
         saveWord(popupState, { url, sentence }).then(() => setSaved(true))
       }
 
-      // Content scripts can't run chrome.identity, so delegate OAuth to the
-      // background worker; re-check the session on success to reveal Save.
+      // Content scripts can't open tabs via chrome.tabs, so open the web app
+      // login in a new tab from the page. After the user signs in there, the
+      // bridge syncs the session back and the storage listener reveals Save.
       function handleSignIn() {
         setSigningIn(true)
-        chrome.runtime.sendMessage({ type: 'sign-in' }, (res) => {
-          setSigningIn(false)
-          if (res?.ok) hasSession().then(setSignedIn)
-        })
+        window.open(loginUrl(), '_blank')
       }
 
       return createElement(DefinitionPopup, {
