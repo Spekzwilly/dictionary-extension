@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 body {
-  width: 280px;
+  width: max-content;
   min-height: 120px;
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
