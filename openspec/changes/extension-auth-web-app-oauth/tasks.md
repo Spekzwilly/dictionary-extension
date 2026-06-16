@@ -20,5 +20,5 @@
 ## 4. Verification and docs
 
 - [x] 4.1 Build and test all three packages green: `npm run build` succeeds and `npm test --workspace=@dictionary/extension` and `npm test --workspace=@dictionary/web` pass, including the new `isTrustedSessionMessage`, login-URL, and `shouldAutoStartOAuth` tests.
-- [ ] 4.2 Run the manual end-to-end acceptance check: load unpacked from `packages/extension/.output/chrome-mv3`, sign in via both the toolbar and in-page buttons, confirm the extension reflects signed-in state, confirm web app sign-out clears the extension, and confirm a foreign-origin `postMessage` is ignored.
+- [x] 4.2 Run the manual end-to-end acceptance check: load unpacked from `packages/extension/.output/chrome-mv3`, sign in via both the toolbar and in-page buttons, confirm the extension reflects signed-in state, confirm web app sign-out clears the extension, and confirm a foreign-origin `postMessage` is ignored.
 - [x] 4.3 Prune the now-obsolete `launchWebAuthFlow`, OAuth-nonce, and `chromiumapp.org` redirect-URI gotchas from the repo `CLAUDE.md`. Verified by a content review confirming those entries are gone and no remaining text claims the extension runs its own OAuth.
