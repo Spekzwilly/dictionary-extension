@@ -4,9 +4,10 @@
   "workspaces": [
     "packages/shared",
     "packages/extension",
-    "packages/web"
+    "packages/web",
+    "packages/raycast"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@dictionary/shared && npm run build --workspace=@dictionary/extension && npm run build --workspace=@dictionary/web"
+    "build": "npm run build --workspace=@dictionary/shared && npm run build --workspace=@dictionary/extension && npm run build --workspace=@dictionary/web && npm run build --workspace=dictionary-vocab"
   }
 }

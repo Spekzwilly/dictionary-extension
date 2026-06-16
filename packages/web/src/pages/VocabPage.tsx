@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { VocabEntry } from '@dictionary/shared'
+import { MANUAL_ENCOUNTER_URL } from '@dictionary/shared'
 import { useAuth, signOut } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { cn } from '../lib/utils'
@@ -48,9 +49,13 @@ function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: b
             {entry.encounters.map((enc, i) => (
               <div key={i} className="bg-white rounded-lg p-3 border border-gray-100">
                 <p className="text-xs font-medium text-indigo-400 mb-1">
-                  {(() => { try { return new URL(enc.url).hostname } catch { return enc.url } })()} · {formatDate(enc.savedAt)}
+                  {enc.url === MANUAL_ENCOUNTER_URL
+                    ? 'Added in Raycast'
+                    : (() => { try { return new URL(enc.url).hostname } catch { return enc.url } })()} · {formatDate(enc.savedAt)}
                 </p>
-                <p className="text-xs text-gray-600 leading-relaxed">"{enc.sentence}"</p>
+                {enc.sentence && (
+                  <p className="text-xs text-gray-600 leading-relaxed">"{enc.sentence}"</p>
+                )}
               </div>
             ))}
           </div>
