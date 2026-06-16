@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, system-ui, sans-serif; background: #f7f7f8; padding: 40px; width: 1180px; }
+  h1 { font-size: 22px; color: #18181b; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #71717a; margin-bottom: 32px; }
+  .row { display: grid; grid-template-columns: 220px 1fr; gap: 24px; align-items: center;
+         background: #fff; border: 1px solid #e4e4e7; border-radius: 20px; padding: 28px 32px; margin-bottom: 20px; }
+  .label { }
+  .label .name { font-size: 17px; font-weight: 600; color: #18181b; }
+  .label .desc { font-size: 13px; color: #71717a; margin-top: 4px; line-height: 1.4; }
+  .sizes { display: flex; align-items: center; gap: 36px; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .cell .cap { font-size: 11px; color: #a1a1aa; }
+  .swatch-dark { background: #1c1c1e; border-radius: 14px; padding: 16px; }
+  img { display: block; }
+  .r512 { width: 104px; height: 104px; border-radius: 24px; }
+  .r128 { width: 64px; height: 64px; border-radius: 15px; }
+  .r32  { width: 32px; height: 32px; border-radius: 7px; }
+  .r16  { width: 16px; height: 16px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <h1>Vocab Bank — icon variations</h1>
+  <div class="sub">Raycast icon (512) → favicon sizes (32 / 16). Each shown on light and a dark dock.</div>
+
+  <div class="row">
+    <div class="label"><div class="name">A · Open Book</div>
+      <div class="desc">Literal &amp; friendly — matches the in-app 📖. One indigo line = the word you saved.</div></div>
+    <div class="sizes">
+      <div class="cell"><img class="r512" src="a-open-book.svg"><div class="cap">512 · Raycast</div></div>
+      <div class="cell"><div class="swatch-dark"><img class="r512" src="a-open-book.svg"></div><div class="cap">on dark</div></div>
+      <div class="cell"><img class="r32" src="a-open-book.svg"><div class="cap">32</div></div>
+      <div class="cell"><img class="r16" src="a-open-book.svg"><div class="cap">16 · favicon</div></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label"><div class="name">B · Bookmark</div>
+      <div class="desc">The "save a word while reading" action — the bank. Plus = add to collection.</div></div>
+    <div class="sizes">
+      <div class="cell"><img class="r512" src="b-bookmark.svg"><div class="cap">512 · Raycast</div></div>
+      <div class="cell"><div class="swatch-dark"><img class="r512" src="b-bookmark.svg"></div><div class="cap">on dark</div></div>
+      <div class="cell"><img class="r32" src="b-bookmark.svg"><div class="cap">32</div></div>
+      <div class="cell"><img class="r16" src="b-bookmark.svg"><div class="cap">16 · favicon</div></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label"><div class="name">C · Aa Lexicon</div>
+      <div class="desc">Editorial dictionary letterform. Most distinctive &amp; legible at tiny sizes.</div></div>
+    <div class="sizes">
+      <div class="cell"><img class="r512" src="c-lexicon.svg"><div class="cap">512 · Raycast</div></div>
+      <div class="cell"><div class="swatch-dark"><img class="r512" src="c-lexicon.svg"></div><div class="cap">on dark</div></div>
+      <div class="cell"><img class="r32" src="c-lexicon.svg"><div class="cap">32</div></div>
+      <div class="cell"><img class="r16" src="c-lexicon.svg"><div class="cap">16 · favicon</div></div>
+    </div>
+  </div>
+</body>
+</html>
