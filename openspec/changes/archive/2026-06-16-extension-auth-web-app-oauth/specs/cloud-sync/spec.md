@@ -1,10 +1,4 @@
-# cloud-sync Specification
-
-## Purpose
-
-Defines authentication, per-user data isolation, and token lifecycle management for syncing the vocab bank to Supabase via Google OAuth — both in the Chrome extension and the web app.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Google OAuth sign-in in Chrome extension
 
@@ -33,35 +27,8 @@ The extension SHALL NOT run Google OAuth itself. Instead, every extension sign-i
 - **WHEN** the Google OAuth flow fails or the user cancels on the web app
 - **THEN** the extension SHALL remain signed out and SHALL NOT receive a session, while the failure is surfaced in the web app tab
 
-
-<!-- @trace
-source: extension-auth-web-app-oauth
-updated: 2026-06-16
-code:
-  - packages/shared/package.json
-  - packages/raycast/src/lib/auth.ts
-  - packages/raycast/src/add-vocab.tsx
-  - package.json
-  - packages/raycast/assets/extension-icon.png
-  - packages/shared/vitest.config.ts
-  - packages/raycast/src/lib/vocab.ts
-  - packages/raycast/src/lib/supabase.ts
-  - packages/web/src/pages/VocabPage.tsx
-  - packages/shared/src/encounters.ts
-  - packages/extension/lib/dictionary-service.ts
-  - packages/raycast/package.json
-  - packages/raycast/raycast-env.d.ts
-  - packages/raycast/tsconfig.json
-  - dictionary-extension-prd.md
-  - packages/shared/src/index.ts
-  - raycast-add-vocab-prd.md
-  - packages/shared/src/dictionary.ts
-tests:
-  - packages/shared/src/__tests__/dictionary.test.ts
-  - packages/shared/src/__tests__/encounters.test.ts
--->
-
 ---
+
 ### Requirement: Sign out from Chrome extension
 
 The extension SHALL allow the user to sign out from the toolbar popup, clearing the extension's Supabase session. Sign-out SHALL also be triggerable remotely by the web app: when the web app signs out, the extension SHALL clear its session in response to the web app's sign-out broadcast. Extension sign-out SHALL NOT depend on `chrome.identity` cached tokens.
@@ -78,104 +45,8 @@ The extension SHALL allow the user to sign out from the toolbar popup, clearing 
 - **THEN** the web app SHALL broadcast a sign-out signal that the extension bridge receives
 - **THEN** the extension SHALL clear its Supabase session
 
+## ADDED Requirements
 
-<!-- @trace
-source: extension-auth-web-app-oauth
-updated: 2026-06-16
-code:
-  - packages/shared/package.json
-  - packages/raycast/src/lib/auth.ts
-  - packages/raycast/src/add-vocab.tsx
-  - package.json
-  - packages/raycast/assets/extension-icon.png
-  - packages/shared/vitest.config.ts
-  - packages/raycast/src/lib/vocab.ts
-  - packages/raycast/src/lib/supabase.ts
-  - packages/web/src/pages/VocabPage.tsx
-  - packages/shared/src/encounters.ts
-  - packages/extension/lib/dictionary-service.ts
-  - packages/raycast/package.json
-  - packages/raycast/raycast-env.d.ts
-  - packages/raycast/tsconfig.json
-  - dictionary-extension-prd.md
-  - packages/shared/src/index.ts
-  - raycast-add-vocab-prd.md
-  - packages/shared/src/dictionary.ts
-tests:
-  - packages/shared/src/__tests__/dictionary.test.ts
-  - packages/shared/src/__tests__/encounters.test.ts
--->
-
----
-### Requirement: Google OAuth sign-in in web app
-
-The web app SHALL authenticate the user via Supabase Auth Google OAuth redirect flow.
-
-#### Scenario: Sign in from login page
-
-- **WHEN** user clicks "Sign in with Google" on the login page
-- **THEN** the browser SHALL redirect to Google's OAuth consent screen
-- **THEN** after consent, the browser SHALL redirect back to the web app with a session established
-
-#### Scenario: Session persistence across page reloads
-
-- **WHEN** user has an active session and refreshes the page
-- **THEN** the user SHALL remain signed in without being redirected to the login page
-
-#### Scenario: Unauthenticated access attempt
-
-- **WHEN** an unauthenticated user navigates to `/vocab` or `/review`
-- **THEN** the app SHALL redirect to `/login`
-
----
-### Requirement: Per-user data isolation via Supabase RLS
-
-All vocab data in Supabase SHALL be governed by Row Level Security so that each user can only read and write their own words.
-
-#### Scenario: User can only access own words
-
-- **WHEN** a signed-in user reads from `vocab_entries`
-- **THEN** only rows where `user_id = auth.uid()` SHALL be returned
-
-#### Scenario: User cannot read other users' words
-
-- **WHEN** a user attempts to query vocab entries belonging to another user
-- **THEN** the query SHALL return zero rows (RLS silently filters them out)
-
----
-### Requirement: Shared signed-in state check across surfaces
-
-The extension SHALL determine signed-in state using a fast, network-free session read (Supabase `getSession`, backed by the existing `chrome.storage` session adapter). Every surface SHALL use this check to decide whether to render the signed-in or signed-out state.
-
-#### Scenario: Session present
-
-- **WHEN** any surface checks signed-in state and a valid Supabase session exists in storage
-- **THEN** the check SHALL return signed-in without making a network request
-
-#### Scenario: Session absent
-
-- **WHEN** any surface checks signed-in state and no session exists in storage
-- **THEN** the check SHALL return signed-out
-
-<!-- @trace
-source: unified-login-gated-vocab-bank
-updated: 2026-06-15
-code:
-  - dictionary-extension-prd.md
-  - packages/extension/entrypoints/background.ts
-  - CLAUDE.md
-  - packages/extension/lib/auth.ts
-  - packages/extension/lib/components/DefinitionPopup.tsx
-  - packages/extension/entrypoints/vocab-bank/App.tsx
-  - unified-vocab-bank-prd.md
-  - packages/extension/entrypoints/popup/App.tsx
-  - packages/extension/entrypoints/content.ts
-tests:
-  - packages/extension/lib/__tests__/auth.test.ts
-  - packages/extension/lib/__tests__/vocab-storage.test.ts
--->
-
----
 ### Requirement: Session handoff from web app to extension
 
 The extension SHALL receive its authenticated session from the deployed web app via an explicit in-browser `postMessage` handshake, so the session token never travels over the network or in a URL. The web app SHALL broadcast its session to the page via `window.postMessage` only on genuine authentication transitions, and a dedicated extension bridge — a content script scoped exclusively to the web app origins — SHALL validate inbound messages before persisting the session with `supabase.auth.setSession()`.
@@ -223,29 +94,24 @@ The bridge SHALL honor a session message only when the message origin is in the 
 - **WHEN** the session is persisted into `chrome.storage.local` while an in-page definition popup is open on a reading tab
 - **THEN** a `chrome.storage.onChanged` listener SHALL flip the popup to its signed-in state and reveal the Save button without a manual refresh
 
-<!-- @trace
-source: extension-auth-web-app-oauth
-updated: 2026-06-16
-code:
-  - packages/shared/package.json
-  - packages/raycast/src/lib/auth.ts
-  - packages/raycast/src/add-vocab.tsx
-  - package.json
-  - packages/raycast/assets/extension-icon.png
-  - packages/shared/vitest.config.ts
-  - packages/raycast/src/lib/vocab.ts
-  - packages/raycast/src/lib/supabase.ts
-  - packages/web/src/pages/VocabPage.tsx
-  - packages/shared/src/encounters.ts
-  - packages/extension/lib/dictionary-service.ts
-  - packages/raycast/package.json
-  - packages/raycast/raycast-env.d.ts
-  - packages/raycast/tsconfig.json
-  - dictionary-extension-prd.md
-  - packages/shared/src/index.ts
-  - raycast-add-vocab-prd.md
-  - packages/shared/src/dictionary.ts
-tests:
-  - packages/shared/src/__tests__/dictionary.test.ts
-  - packages/shared/src/__tests__/encounters.test.ts
--->
+## REMOVED Requirements
+
+### Requirement: Expired token recovery in extension
+
+**Reason**: This requirement relied on `chrome.identity.getAuthToken` / `removeCachedAuthToken` retry logic, which is removed along with the extension's in-extension OAuth path.
+**Migration**: Once a session is handed back from the web app, the extension's Supabase client keeps it alive via `autoRefreshToken`. If refresh fails, the user re-initiates sign-in, which reopens the web app login tab.
+
+#### Scenario: Token refresh no longer uses chrome.identity
+
+- **WHEN** the extension's handed-back session approaches expiry
+- **THEN** the extension SHALL refresh it via the Supabase client's `autoRefreshToken` and SHALL NOT call `chrome.identity.getAuthToken` or `removeCachedAuthToken`
+
+### Requirement: OAuth delegation via background service worker
+
+**Reason**: The extension no longer runs OAuth, so the background service worker that delegated `launchWebAuthFlow` on behalf of the in-page popup is deleted; the extension ships with no background worker.
+**Migration**: The in-page definition popup's Google button opens `<web app>/login?ext=1` directly (the same path as the toolbar popup), and the resulting session arrives via the session handoff bridge.
+
+#### Scenario: No background worker performs OAuth
+
+- **WHEN** the in-page definition popup requests sign-in
+- **THEN** no background service worker SHALL handle it, and the popup SHALL open `<web app>/login?ext=1` instead

@@ -1,0 +1,28 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgB" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a5b4fc"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="markB" x1="160" y1="120" x2="352" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eef1ff"/>
+    </linearGradient>
+    <filter id="shadowB" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#312e81" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bgB)"/>
+
+  <!-- bookmark / ribbon: saving a word -->
+  <g filter="url(#shadowB)">
+    <path d="M180 132H332C344 132 354 142 354 154V392C354 402 343 408 334 402L256 350L178 402C169 408 158 402 158 392V154C158 142 168 132 180 132Z" fill="url(#markB)"/>
+  </g>
+
+  <!-- plus mark: add a word -->
+  <g>
+    <rect x="240" y="196" width="32" height="96" rx="16" fill="#6366f1"/>
+    <rect x="208" y="228" width="96" height="32" rx="16" fill="#6366f1"/>
+  </g>
+</svg>
