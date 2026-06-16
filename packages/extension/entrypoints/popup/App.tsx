@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
 import { getAllWords } from '../../lib/vocab-storage'
-import { hasSession, signInWithGoogle, signOut } from '../../lib/auth'
-import { vocabBankUrl, reviewUrl } from '../../lib/web-app-url'
+import { hasSession, signOut } from '../../lib/auth'
+import { vocabBankUrl, reviewUrl, loginUrl } from '../../lib/web-app-url'
 import { cn } from '../../lib/utils'
 
 export default function PopupApp() {
   const [authLoading, setAuthLoading] = useState(true)
   const [signedIn, setSignedIn] = useState(false)
-  const [signingIn, setSigningIn] = useState(false)
-  const [authError, setAuthError] = useState<string | null>(null)
   const [wordCount, setWordCount] = useState<number | null>(null)
 
   async function refresh() {
@@ -27,17 +25,10 @@ export default function PopupApp() {
     refresh()
   }, [])
 
-  async function handleSignIn() {
-    setAuthError(null)
-    setSigningIn(true)
-    try {
-      await signInWithGoogle()
-      await refresh()
-    } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Sign-in failed')
-    } finally {
-      setSigningIn(false)
-    }
+  // Sign-in runs on the web app's full-page OAuth. Open it in a new tab; the
+  // bridge hands the session back, and this popup shows signed-in on next open.
+  function handleSignIn() {
+    chrome.tabs.create({ url: loginUrl() })
   }
 
   async function handleSignOut() {
@@ -70,17 +61,13 @@ export default function PopupApp() {
         </div>
         <button
           onClick={handleSignIn}
-          disabled={signingIn}
           className={cn(
             'w-full py-2 rounded-lg text-sm font-medium transition-colors',
-            signingIn
-              ? 'bg-indigo-50 text-indigo-400 cursor-default'
-              : 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
+            'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer'
           )}
         >
-          {signingIn ? 'Signing in…' : 'Sign in with Google'}
+          Sign in with Google
         </button>
-        {authError && <p className="text-xs text-red-500">{authError}</p>}
       </div>
     )
   }

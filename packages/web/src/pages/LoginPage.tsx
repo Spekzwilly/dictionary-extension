@@ -1,15 +1,45 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, signInWithGoogle } from '../lib/auth'
+import { supabase } from '../lib/supabase'
+import {
+  shouldAutoStartOAuth,
+  isFromExtension,
+  isReturningFromOAuth,
+  broadcastSession,
+} from '../lib/login-flow'
 
 export default function LoginPage() {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
+  const startedRef = useRef(false)
 
-  // Redirect once session is established (handles OAuth callback too)
+  const fromExt = isFromExtension(window.location.search)
+  const returningFromOAuth = isReturningFromOAuth(window.location.search, window.location.hash)
+
+  // Already signed in: hand the session to the extension (when arriving via the
+  // extension) and redirect to the vocab bank. Also covers the OAuth callback.
   useEffect(() => {
-    if (!loading && user) navigate('/vocab', { replace: true })
-  }, [user, loading, navigate])
+    if (loading || !user) return
+    if (fromExt) {
+      supabase.auth.getSession().then(({ data }) => {
+        broadcastSession(data.session)
+        navigate('/vocab', { replace: true })
+      })
+    } else {
+      navigate('/vocab', { replace: true })
+    }
+  }, [user, loading, fromExt, navigate])
+
+  // Extension-initiated, signed-out: auto-start OAuth once (guarded so a
+  // strict-mode double-mount can't fire it twice and the return leg can't loop).
+  useEffect(() => {
+    if (loading || startedRef.current) return
+    if (shouldAutoStartOAuth({ hasSession: !!user, fromExt, returningFromOAuth })) {
+      startedRef.current = true
+      signInWithGoogle()
+    }
+  }, [user, loading, fromExt, returningFromOAuth])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">

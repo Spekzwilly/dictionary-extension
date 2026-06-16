@@ -17,4 +17,8 @@ describe('joinWebAppUrl', () => {
   it('adds a leading slash to the path when missing', () => {
     expect(joinWebAppUrl('https://app.vercel.app', 'review')).toBe('https://app.vercel.app/review')
   })
+
+  it('builds the extension login URL carrying the ext=1 marker', () => {
+    expect(joinWebAppUrl('https://app.vercel.app', '/login?ext=1')).toBe('https://app.vercel.app/login?ext=1')
+  })
 })

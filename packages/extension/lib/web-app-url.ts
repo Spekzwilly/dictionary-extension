@@ -16,3 +16,9 @@ export function vocabBankUrl(): string {
 export function reviewUrl(): string {
   return joinWebAppUrl(base, '/review')
 }
+
+// The web app login route, marked so it auto-starts Google OAuth for the
+// extension. The session is handed back to the extension via the bridge.
+export function loginUrl(): string {
+  return joinWebAppUrl(base, '/login?ext=1')
+}
