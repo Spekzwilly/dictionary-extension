@@ -8,66 +8,103 @@ Defines authentication, per-user data isolation, and token lifecycle management 
 
 ### Requirement: Google OAuth sign-in in Chrome extension
 
-The extension SHALL authenticate the user via Google OAuth using `chrome.identity.launchWebAuthFlow()` to obtain an OIDC id_token, then exchange it with Supabase Auth via `signInWithIdToken` to establish a session. Sign-in SHALL be reachable from three surfaces: the toolbar popup, the in-page definition popup, and the Vocab Bank page.
+The extension SHALL NOT run Google OAuth itself. Instead, every extension sign-in surface SHALL initiate sign-in by opening a new browser tab at the deployed web app's login route with an extension marker (`<web app>/login?ext=1`), where the web app performs the full-page Google OAuth flow. Sign-in SHALL be reachable from two surfaces: the toolbar popup and the in-page definition popup. The extension SHALL become signed in only via the session handoff from the web app (see "Session handoff from web app to extension"), never through an in-extension OAuth call.
 
 #### Scenario: Sign in from toolbar popup
 
 - **WHEN** user clicks "Sign in with Google" in the toolbar popup while signed out
-- **THEN** the extension SHALL open the Google OAuth consent screen, obtain an id_token, and sign the user into Supabase
-- **THEN** the toolbar popup SHALL re-render in its signed-in state
-
-#### Scenario: Sign in from Vocab Bank page
-
-- **WHEN** user clicks "Sign in with Google" on the Vocab Bank page while signed out
-- **THEN** the extension SHALL complete the OAuth flow and sign the user into Supabase
-- **THEN** the Vocab Bank page SHALL reload showing the user's email and a "Sign out" button
+- **THEN** the extension SHALL open a new tab at `<web app>/login?ext=1`
+- **THEN** the extension SHALL NOT call `chrome.identity.launchWebAuthFlow` or `signInWithIdToken`
+- **THEN** the toolbar popup SHALL render its signed-in state the next time it is opened after the session has been handed back
 
 #### Scenario: Sign in from in-page definition popup
 
 - **WHEN** user clicks "Sign in with Google" in the in-page definition popup while signed out
-- **THEN** the content script SHALL delegate the OAuth flow to the background service worker, which completes sign-in into Supabase
-- **THEN** the in-page definition popup SHALL re-check the session and replace the sign-in button with "Save to Vocab Bank"
+- **THEN** the extension SHALL open a new tab at `<web app>/login?ext=1`
+- **THEN** once the session is handed back, the in-page definition popup SHALL replace the sign-in button with "Save to Vocab Bank" without requiring a manual refresh
 
 #### Scenario: Sign in with already-consented Google account
 
-- **WHEN** user initiates sign-in from any surface and has previously consented
-- **THEN** sign-in SHALL complete without requiring the user to re-grant consent
+- **WHEN** user initiates sign-in from any surface and is already signed into the web app
+- **THEN** the web app SHALL hand the existing session back to the extension without prompting Google for consent again
 
 #### Scenario: Sign-in failure
 
-- **WHEN** the Google OAuth flow fails or the user cancels, from any surface
-- **THEN** the extension SHALL remain signed out and SHALL display an error message on the surface that initiated sign-in
+- **WHEN** the Google OAuth flow fails or the user cancels on the web app
+- **THEN** the extension SHALL remain signed out and SHALL NOT receive a session, while the failure is surfaced in the web app tab
 
 
 <!-- @trace
-source: unified-login-gated-vocab-bank
-updated: 2026-06-15
+source: extension-auth-web-app-oauth
+updated: 2026-06-16
 code:
+  - packages/shared/package.json
+  - packages/raycast/src/lib/auth.ts
+  - packages/raycast/src/add-vocab.tsx
+  - package.json
+  - packages/raycast/assets/extension-icon.png
+  - packages/shared/vitest.config.ts
+  - packages/raycast/src/lib/vocab.ts
+  - packages/raycast/src/lib/supabase.ts
+  - packages/web/src/pages/VocabPage.tsx
+  - packages/shared/src/encounters.ts
+  - packages/extension/lib/dictionary-service.ts
+  - packages/raycast/package.json
+  - packages/raycast/raycast-env.d.ts
+  - packages/raycast/tsconfig.json
   - dictionary-extension-prd.md
-  - packages/extension/entrypoints/background.ts
-  - CLAUDE.md
-  - packages/extension/lib/auth.ts
-  - packages/extension/lib/components/DefinitionPopup.tsx
-  - packages/extension/entrypoints/vocab-bank/App.tsx
-  - unified-vocab-bank-prd.md
-  - packages/extension/entrypoints/popup/App.tsx
-  - packages/extension/entrypoints/content.ts
+  - packages/shared/src/index.ts
+  - raycast-add-vocab-prd.md
+  - packages/shared/src/dictionary.ts
 tests:
-  - packages/extension/lib/__tests__/auth.test.ts
-  - packages/extension/lib/__tests__/vocab-storage.test.ts
+  - packages/shared/src/__tests__/dictionary.test.ts
+  - packages/shared/src/__tests__/encounters.test.ts
 -->
 
 ---
 ### Requirement: Sign out from Chrome extension
 
-The extension SHALL allow the user to sign out, clearing both the Supabase session and the cached Google token.
+The extension SHALL allow the user to sign out from the toolbar popup, clearing the extension's Supabase session. Sign-out SHALL also be triggerable remotely by the web app: when the web app signs out, the extension SHALL clear its session in response to the web app's sign-out broadcast. Extension sign-out SHALL NOT depend on `chrome.identity` cached tokens.
 
-#### Scenario: Sign out
+#### Scenario: Sign out from the extension toolbar
 
-- **WHEN** user clicks "Sign out"
-- **THEN** the Supabase session SHALL be cleared
-- **THEN** `chrome.identity.removeCachedAuthToken()` SHALL be called
-- **THEN** the vocab bank SHALL reload in the signed-out state
+- **WHEN** user clicks "Sign out" in the toolbar popup
+- **THEN** the extension's Supabase session SHALL be cleared
+- **THEN** the toolbar popup SHALL re-render in the signed-out state
+
+#### Scenario: Web app sign-out cascades to the extension
+
+- **WHEN** the user signs out of the web app while the extension holds a session
+- **THEN** the web app SHALL broadcast a sign-out signal that the extension bridge receives
+- **THEN** the extension SHALL clear its Supabase session
+
+
+<!-- @trace
+source: extension-auth-web-app-oauth
+updated: 2026-06-16
+code:
+  - packages/shared/package.json
+  - packages/raycast/src/lib/auth.ts
+  - packages/raycast/src/add-vocab.tsx
+  - package.json
+  - packages/raycast/assets/extension-icon.png
+  - packages/shared/vitest.config.ts
+  - packages/raycast/src/lib/vocab.ts
+  - packages/raycast/src/lib/supabase.ts
+  - packages/web/src/pages/VocabPage.tsx
+  - packages/shared/src/encounters.ts
+  - packages/extension/lib/dictionary-service.ts
+  - packages/raycast/package.json
+  - packages/raycast/raycast-env.d.ts
+  - packages/raycast/tsconfig.json
+  - dictionary-extension-prd.md
+  - packages/shared/src/index.ts
+  - raycast-add-vocab-prd.md
+  - packages/shared/src/dictionary.ts
+tests:
+  - packages/shared/src/__tests__/dictionary.test.ts
+  - packages/shared/src/__tests__/encounters.test.ts
+-->
 
 ---
 ### Requirement: Google OAuth sign-in in web app
@@ -106,57 +143,6 @@ All vocab data in Supabase SHALL be governed by Row Level Security so that each 
 - **THEN** the query SHALL return zero rows (RLS silently filters them out)
 
 ---
-### Requirement: Expired token recovery in extension
-
-The extension SHALL handle Google token expiry by retrying the sign-in flow automatically.
-
-#### Scenario: Cached token is expired
-
-- **WHEN** a Supabase operation fails with an auth error due to an expired Google token
-- **THEN** the extension SHALL call `chrome.identity.removeCachedAuthToken()` and retry `getAuthToken({interactive: false})`
-- **THEN** if the retry succeeds, the original operation SHALL be retried
-- **THEN** if the retry fails, the extension SHALL surface a "Session expired, please sign in again" message
-
----
-### Requirement: OAuth delegation via background service worker
-
-Because content scripts do not have access to `chrome.identity`, the extension SHALL provide a background service worker that performs the Google OAuth flow on behalf of the in-page definition popup. The content script SHALL request sign-in by sending a runtime message; the worker SHALL run the OAuth flow and respond with success or failure.
-
-#### Scenario: Content script requests sign-in
-
-- **WHEN** the content script sends a `sign-in` runtime message to the background worker
-- **THEN** the worker SHALL run `launchWebAuthFlow` and `signInWithIdToken`, and SHALL respond with a success result once a Supabase session is established
-
-#### Scenario: Delegated sign-in fails
-
-- **WHEN** the OAuth flow run by the background worker fails or is cancelled
-- **THEN** the worker SHALL respond with a failure result and the session SHALL remain signed out
-
-#### Scenario: Direct sign-in is not delegated
-
-- **WHEN** sign-in is initiated from the toolbar popup or the Vocab Bank page (both extension pages with `chrome.identity` access)
-- **THEN** the OAuth flow SHALL run in that page directly and SHALL NOT be routed through the background worker
-
-
-<!-- @trace
-source: unified-login-gated-vocab-bank
-updated: 2026-06-15
-code:
-  - dictionary-extension-prd.md
-  - packages/extension/entrypoints/background.ts
-  - CLAUDE.md
-  - packages/extension/lib/auth.ts
-  - packages/extension/lib/components/DefinitionPopup.tsx
-  - packages/extension/entrypoints/vocab-bank/App.tsx
-  - unified-vocab-bank-prd.md
-  - packages/extension/entrypoints/popup/App.tsx
-  - packages/extension/entrypoints/content.ts
-tests:
-  - packages/extension/lib/__tests__/auth.test.ts
-  - packages/extension/lib/__tests__/vocab-storage.test.ts
--->
-
----
 ### Requirement: Shared signed-in state check across surfaces
 
 The extension SHALL determine signed-in state using a fast, network-free session read (Supabase `getSession`, backed by the existing `chrome.storage` session adapter). Every surface SHALL use this check to decide whether to render the signed-in or signed-out state.
@@ -187,4 +173,79 @@ code:
 tests:
   - packages/extension/lib/__tests__/auth.test.ts
   - packages/extension/lib/__tests__/vocab-storage.test.ts
+-->
+
+---
+### Requirement: Session handoff from web app to extension
+
+The extension SHALL receive its authenticated session from the deployed web app via an explicit in-browser `postMessage` handshake, so the session token never travels over the network or in a URL. The web app SHALL broadcast its session to the page via `window.postMessage` only on genuine authentication transitions, and a dedicated extension bridge — a content script scoped exclusively to the web app origins — SHALL validate inbound messages before persisting the session with `supabase.auth.setSession()`.
+
+The web app SHALL broadcast the session on `SIGNED_IN` and broadcast a clear on `SIGNED_OUT`, plus a one-time manual broadcast when an already-signed-in user arrives via the extension marker. The web app SHALL NOT broadcast on passive load (`INITIAL_SESSION`) or on `TOKEN_REFRESHED`. Once a session is handed back, the extension's Supabase client SHALL refresh its own tokens via `autoRefreshToken` without further broadcasts.
+
+The bridge SHALL honor a session message only when the message origin is in the hardcoded allowlist (`https://dictionary-extension.vercel.app`, `http://localhost` on any port), the message source is the page's own `window`, and the message shape matches the agreed handoff contract; otherwise it SHALL be silently ignored.
+
+#### Scenario: Session is handed back after web app sign-in
+
+- **WHEN** the web app establishes a session (`SIGNED_IN`) and broadcasts `{ type: 'dict-ext-session', session }`
+- **THEN** the bridge SHALL validate the origin, source, and shape, then call `setSession` to persist the session into `chrome.storage.local`
+- **THEN** the extension SHALL be signed in
+
+#### Scenario: Already-signed-in user handed back without re-consent
+
+- **WHEN** an already-signed-in user opens `<web app>/login?ext=1`
+- **THEN** the web app SHALL broadcast its existing session once and redirect to `/vocab`
+- **THEN** the bridge SHALL persist the session and the extension SHALL become signed in
+
+#### Scenario: Malicious origin is ignored
+
+- **WHEN** a page on any origin other than the allowlisted ones posts a `{ type: 'dict-ext-session', session }` message
+- **THEN** the bridge SHALL ignore it and SHALL NOT write any session
+
+##### Example: handoff message trust decision
+
+| message origin | source === window | type | shape valid | accepted |
+| -------------- | ----------------- | ---- | ----------- | -------- |
+| https://dictionary-extension.vercel.app | yes | dict-ext-session | yes | yes |
+| http://localhost:5174 | yes | dict-ext-session | yes | yes |
+| https://evil.com | yes | dict-ext-session | yes | no |
+| https://dictionary-extension.vercel.app | no | dict-ext-session | yes | no |
+| https://dictionary-extension.vercel.app | yes | other | yes | no |
+| https://dictionary-extension.vercel.app | yes | dict-ext-session | no | no |
+
+#### Scenario: Background token refresh does not resurrect a signed-out extension
+
+- **WHEN** the user has signed the extension out and an open web app tab later fires `TOKEN_REFRESHED`
+- **THEN** the web app SHALL NOT broadcast the refreshed session
+- **THEN** the extension SHALL remain signed out
+
+#### Scenario: In-page Save appears reactively when the session syncs in
+
+- **WHEN** the session is persisted into `chrome.storage.local` while an in-page definition popup is open on a reading tab
+- **THEN** a `chrome.storage.onChanged` listener SHALL flip the popup to its signed-in state and reveal the Save button without a manual refresh
+
+<!-- @trace
+source: extension-auth-web-app-oauth
+updated: 2026-06-16
+code:
+  - packages/shared/package.json
+  - packages/raycast/src/lib/auth.ts
+  - packages/raycast/src/add-vocab.tsx
+  - package.json
+  - packages/raycast/assets/extension-icon.png
+  - packages/shared/vitest.config.ts
+  - packages/raycast/src/lib/vocab.ts
+  - packages/raycast/src/lib/supabase.ts
+  - packages/web/src/pages/VocabPage.tsx
+  - packages/shared/src/encounters.ts
+  - packages/extension/lib/dictionary-service.ts
+  - packages/raycast/package.json
+  - packages/raycast/raycast-env.d.ts
+  - packages/raycast/tsconfig.json
+  - dictionary-extension-prd.md
+  - packages/shared/src/index.ts
+  - raycast-add-vocab-prd.md
+  - packages/shared/src/dictionary.ts
+tests:
+  - packages/shared/src/__tests__/dictionary.test.ts
+  - packages/shared/src/__tests__/encounters.test.ts
 -->
