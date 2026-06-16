@@ -10,9 +10,10 @@ npm workspaces monorepo:
 
 | Package | Path | Purpose |
 |---------|------|---------|
-| `@dictionary/shared` | `packages/shared/` | Shared types (`VocabEntry`, `Encounter`, `DefinitionData`) + review-session logic |
+| `@dictionary/shared` | `packages/shared/` | Shared types (`VocabEntry`, `Encounter`, `DefinitionData`) + review-session logic + dictionary lookup (`lookupWord`) + encounter merge (`mergeEncounters`) |
 | `@dictionary/extension` | `packages/extension/` | Chrome extension (WXT + React) |
 | `@dictionary/web` | `packages/web/` | PWA web app (React + Vite + Tailwind) |
+| `dictionary-vocab` | `packages/raycast/` | Raycast extension — **Add Vocab** command (capture words from anywhere) |
 
 Backend is Supabase (Postgres + Google OAuth + per-user RLS).
 
@@ -31,6 +32,19 @@ Signing in is **required to save** — saved words sync to the cloud so you can 
 
 The same word can be saved from multiple articles — each save appends an *encounter*, so review shows you every real sentence you met it in, not a generic example.
 
+## Add Vocab from Raycast
+
+The `packages/raycast/` extension adds a launcher-speed way to save a word from **anywhere** (not just the browser), writing to the same Supabase bank.
+
+1. Run **Add Vocab** in Raycast.
+2. Signed out → a **Sign in with Google** screen; press Enter to run OAuth.
+3. Type a word → it's looked up in the same dictionary → a preview shows the definition.
+4. **Enter** saves it. "Add with sentence…" optionally attaches an example sentence. Already-saved words show an "Already saved" hint and just append a new encounter.
+
+Manually-added words record a `raycast://manual` encounter, so the web bank labels them **"Added in Raycast"** instead of a source link.
+
+**Run it:** `cd packages/raycast && npm run dev` (needs the Raycast app + a Raycast account). Set the **Supabase Anon Key** in the command's preferences, and add `https://raycast.com/redirect*` to Supabase → Auth → URL Configuration → **Redirect URLs**. See `CLAUDE.md` for the OAuth gotchas.
+
 ### Where sign-in lives
 
 Sign-in is reachable from the **toolbar popup**, the **in-page definition popup**, and the **web app** (which keeps its own session). The toolbar popup runs OAuth directly; the in-page popup delegates to a background service worker (content scripts can't use `chrome.identity`); the web app signs in separately (one-time per browser). The extension no longer ships internal bank/review pages — the deployed web app is the single bank/review surface, and JSON export/import has been retired.
@@ -45,8 +59,14 @@ npm run build
 npm run build --workspace=@dictionary/extension
 npm test  --workspace=@dictionary/extension
 
+# Shared logic tests (lookupWord, mergeEncounters)
+npm test  --workspace=@dictionary/shared
+
 # Web app dev server
 cd packages/web && npm run dev -- --port 5174
+
+# Raycast extension (dev)
+cd packages/raycast && npm run dev
 ```
 
 **Loading the extension:** after building, go to `chrome://extensions` (Developer mode on) → **Load unpacked** → select `packages/extension/.output/chrome-mv3`. After a rebuild, click the card's reload icon. (Always load from the package's `.output` — not any stale `.output` at the repo root.)
@@ -59,6 +79,8 @@ Both `packages/extension/.env` and `packages/web/.env` need:
 VITE_SUPABASE_URL=https://abqfnjodchdjeburhqpb.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon key from Supabase Dashboard → Settings → API>
 ```
+
+The Raycast extension (`packages/raycast/`) doesn't use `.env` — it reads the **Supabase URL** (defaulted) and **Anon Key** from its Raycast command **preferences** instead.
 
 ## Conventions
 

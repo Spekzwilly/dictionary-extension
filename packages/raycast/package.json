@@ -1,0 +1,57 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "dictionary-vocab",
+  "title": "Dictionary Vocab",
+  "description": "Add words to your dictionary vocab bank from anywhere.",
+  "icon": "extension-icon.png",
+  "author": "spekzwilly",
+  "categories": ["Productivity"],
+  "license": "MIT",
+  "private": true,
+  "commands": [
+    {
+      "name": "add-vocab",
+      "title": "Add Vocab",
+      "subtitle": "Dictionary",
+      "description": "Look up a word and save it to your vocab bank.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "supabaseUrl",
+      "title": "Supabase URL",
+      "description": "Your Supabase project URL.",
+      "type": "textfield",
+      "required": true,
+      "default": "https://abqfnjodchdjeburhqpb.supabase.co"
+    },
+    {
+      "name": "supabaseAnonKey",
+      "title": "Supabase Anon Key",
+      "description": "Supabase anonymous (public) API key from Settings → API.",
+      "type": "password",
+      "required": true
+    }
+  ],
+  "dependencies": {
+    "@dictionary/shared": "*",
+    "@raycast/api": "^1.104.19",
+    "@raycast/utils": "^2.2.6",
+    "@supabase/supabase-js": "^2.49.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "~6.0.2"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "dev": "ray develop",
+    "bundle": "ray build -e dist",
+    "lint": "ray lint"
+  }
+}
