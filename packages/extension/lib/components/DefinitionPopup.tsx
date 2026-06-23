@@ -1,5 +1,6 @@
 import type { WordDefinition, NotFound, Loading } from '@dictionary/shared'
 import { cn } from '../utils'
+import { PronounceControls } from './PronounceControls'
 
 type Props = {
   state: WordDefinition | NotFound | Loading
@@ -39,7 +40,8 @@ export function DefinitionPopup({ state, onSave, saved, signedIn, onSignIn, sign
           <span className="text-xs font-medium text-indigo-500 uppercase tracking-wider">{def.partOfSpeech}</span>
         </div>
       </div>
-      <p className="text-sm text-gray-700 leading-relaxed mb-3">{def.definition}</p>
+      <PronounceControls def={def} />
+      <p className="text-sm text-gray-700 leading-relaxed mb-3 mt-2">{def.definition}</p>
       {def.example && (
         <p className="text-xs text-gray-400 italic leading-relaxed border-l-2 border-gray-100 pl-3 mb-4">
           "{def.example}"

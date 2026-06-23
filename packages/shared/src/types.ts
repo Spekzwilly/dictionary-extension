@@ -1,8 +1,17 @@
+export type AccentAudio = {
+  us?: string
+  uk?: string
+}
+
+export type Accent = 'us' | 'uk'
+
 export type WordDefinition = {
   word: string
   partOfSpeech: string
   definition: string
   example?: string
+  audio?: AccentAudio
+  phonetic?: string
 }
 
 export type DefinitionData = WordDefinition

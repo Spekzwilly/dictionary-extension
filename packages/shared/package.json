@@ -9,6 +9,10 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
+    },
+    "./pronounce": {
+      "types": "./src/pronounce.ts",
+      "import": "./src/pronounce.ts"
     }
   },
   "scripts": {
