@@ -1,6 +1,11 @@
-import type { WordDefinition, NotFound, LookupResult } from './types'
+import type { WordDefinition, NotFound, LookupResult, AccentAudio } from './types'
 
 const API_BASE = 'https://api.dictionaryapi.dev/api/v2/entries/en'
+
+type ApiPhonetic = {
+  text?: string
+  audio?: string
+}
 
 type ApiMeaning = {
   partOfSpeech: string
@@ -9,7 +14,40 @@ type ApiMeaning = {
 
 type ApiEntry = {
   word: string
+  phonetics?: ApiPhonetic[]
   meanings: ApiMeaning[]
+}
+
+// Maps a dictionaryapi.dev audio URL to an accent by its filename suffix
+// (e.g. ".../hello-us.mp3" → "us"). Unsuffixed or other accents (-au) are ignored.
+function accentFromUrl(url: string): 'us' | 'uk' | null {
+  if (/-us\.mp3$/i.test(url)) return 'us'
+  if (/-uk\.mp3$/i.test(url)) return 'uk'
+  return null
+}
+
+// Parses an entry's phonetics[] into accent-keyed audio URLs and IPA text.
+// Audio is keyed by URL suffix; phonetic is the first non-empty `text`.
+function parsePhonetics(phonetics: ApiPhonetic[]): {
+  audio?: AccentAudio
+  phonetic?: string
+} {
+  const audio: AccentAudio = {}
+  let phonetic: string | undefined
+
+  for (const p of phonetics) {
+    if (p.audio) {
+      const accent = accentFromUrl(p.audio)
+      if (accent && !audio[accent]) audio[accent] = p.audio
+    }
+    if (!phonetic && p.text) phonetic = p.text
+  }
+
+  const hasAudio = audio.us || audio.uk
+  return {
+    audio: hasAudio ? audio : undefined,
+    phonetic,
+  }
 }
 
 export async function lookupWord(word: string): Promise<LookupResult> {
@@ -27,11 +65,17 @@ export async function lookupWord(word: string): Promise<LookupResult> {
     const def = meaning.definitions[0]
     if (!def) return notFound(normalized)
 
+    // Collect phonetics across all entries — coverage often lives on a later entry.
+    const allPhonetics = data.flatMap((e) => e.phonetics ?? [])
+    const { audio, phonetic } = parsePhonetics(allPhonetics)
+
     const result: WordDefinition = {
       word: entry.word ?? normalized,
       partOfSpeech: meaning.partOfSpeech ?? '',
       definition: def.definition,
       example: def.example,
+      audio,
+      phonetic,
     }
     return result
   } catch {

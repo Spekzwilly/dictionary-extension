@@ -6,6 +6,7 @@ import type { SessionState } from '@dictionary/shared'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { cn } from '../lib/utils'
+import { PronounceButton } from '../components/PronounceButton'
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -116,16 +117,22 @@ export default function ReviewPage() {
             className="bg-white rounded-2xl shadow-md border border-gray-100 min-h-48 flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-shadow p-8"
             onClick={() => setFlipped(true)}
           >
-            <h2 className="text-3xl font-semibold text-gray-900 tracking-tight mb-2">{card.word}</h2>
+            <h2 className="text-3xl font-semibold text-gray-900 tracking-tight mb-3">{card.word}</h2>
+            <div onClick={(e) => e.stopPropagation()} className="mb-3 cursor-default">
+              <PronounceButton word={card.word} />
+            </div>
             <p className="text-xs text-gray-400">tap to reveal definition</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-            <div className="flex items-baseline gap-2 mb-4">
+            <div className="flex items-baseline gap-2 mb-2">
               <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">{card.word}</h2>
               <span className="text-xs font-medium text-indigo-500 uppercase tracking-wider">
                 {card.definition.partOfSpeech}
               </span>
+            </div>
+            <div className="mb-4">
+              <PronounceButton word={card.word} />
             </div>
             <p className="text-sm text-gray-700 leading-relaxed mb-3">{card.definition.definition}</p>
             {card.definition.example && (

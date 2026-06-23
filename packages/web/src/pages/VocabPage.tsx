@@ -5,6 +5,7 @@ import { MANUAL_ENCOUNTER_URL } from '@dictionary/shared'
 import { useAuth, signOut } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { cn } from '../lib/utils'
+import { PronounceButton } from '../components/PronounceButton'
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -14,11 +15,8 @@ function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: b
   const latest = entry.encounters[entry.encounters.length - 1]
   return (
     <div className="border-b border-gray-100 last:border-0">
-      <button
-        className="w-full text-left px-5 py-4 hover:bg-gray-50 transition-colors flex items-start gap-4 cursor-pointer"
-        onClick={onToggle}
-      >
-        <div className="flex-1 min-w-0">
+      <div className="w-full px-5 py-4 hover:bg-gray-50 transition-colors flex items-start gap-4">
+        <button className="flex-1 min-w-0 text-left cursor-pointer" onClick={onToggle}>
           <div className="flex items-baseline gap-2 mb-1">
             <span className="font-semibold text-gray-900">{entry.word}</span>
             <span className="text-xs text-indigo-400 font-medium uppercase tracking-wide">
@@ -26,15 +24,18 @@ function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: b
             </span>
           </div>
           <p className="text-sm text-gray-500 truncate">{entry.definition.definition}</p>
-        </div>
+        </button>
+        <PronounceButton word={entry.word} />
         <div className="flex flex-col items-end gap-1 shrink-0">
           <span className="text-xs text-gray-400">{entry.encounters.length}× encountered</span>
           {latest && <span className="text-xs text-gray-300">{formatDate(latest.savedAt)}</span>}
         </div>
-        <span className={cn('text-gray-300 text-sm mt-0.5 transition-transform duration-200', expanded && 'rotate-180')}>
-          ▾
-        </span>
-      </button>
+        <button onClick={onToggle} className="cursor-pointer">
+          <span className={cn('text-gray-300 text-sm mt-0.5 transition-transform duration-200 inline-block', expanded && 'rotate-180')}>
+            ▾
+          </span>
+        </button>
+      </div>
 
       {expanded && (
         <div className="px-5 pb-4 bg-gray-50">
