@@ -30,7 +30,10 @@ export default function ReviewPage() {
         if (ws.length > 0) setSession(createSession(ws))
         setLoading(false)
       })
-  }, [user])
+    // Depend on the stable user id, not the User object — Supabase emits a fresh
+    // User reference on every auth event (TOKEN_REFRESHED, focus SIGNED_IN, …),
+    // which would otherwise refetch and reshuffle the session mid-review.
+  }, [user?.id])
 
   function handleRate(r: 'easy' | 'hard' | 'again') {
     if (!session) return
