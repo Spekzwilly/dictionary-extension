@@ -54,9 +54,6 @@ function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: b
                     ? 'Added in Raycast'
                     : (() => { try { return new URL(enc.url).hostname } catch { return enc.url } })()} · {formatDate(enc.savedAt)}
                 </p>
-                {enc.sentence && (
-                  <p className="text-xs text-gray-600 leading-relaxed">"{enc.sentence}"</p>
-                )}
               </div>
             ))}
           </div>

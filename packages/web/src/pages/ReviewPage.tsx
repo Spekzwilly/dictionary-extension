@@ -153,9 +153,6 @@ export default function ReviewPage() {
                     <p className="text-xs font-medium text-indigo-400 mb-1">
                       {(() => { try { return new URL(enc.url).hostname } catch { return enc.url } })()} · {formatDate(enc.savedAt)}
                     </p>
-                    {enc.sentence && (
-                      <p className="text-xs text-gray-600 leading-relaxed">"{enc.sentence}"</p>
-                    )}
                   </div>
                 ))}
               </div>
