@@ -19,11 +19,12 @@ export async function getEntry(word: string): Promise<VocabEntry | null> {
 
 /**
  * Saves a word to Supabase `vocab_entries`, appending one `raycast://manual`
- * encounter. Re-adding an existing word appends a merged encounter (deduped by
- * timestamp) without duplicating the row or overwriting the existing
- * definition. Requires an authenticated session.
+ * encounter (no sentence — the dictionary's own example sentence is stored on
+ * the definition). Re-adding an existing word appends a merged encounter
+ * (deduped by timestamp) without duplicating the row or overwriting the
+ * existing definition. Requires an authenticated session.
  */
-export async function saveWord(definition: WordDefinition, sentence: string): Promise<void> {
+export async function saveWord(definition: WordDefinition): Promise<void> {
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -32,7 +33,6 @@ export async function saveWord(definition: WordDefinition, sentence: string): Pr
   const word = definition.word.toLowerCase()
   const encounter: Encounter = {
     url: MANUAL_ENCOUNTER_URL,
-    sentence: sentence.trim(),
     savedAt: Date.now(),
   }
 

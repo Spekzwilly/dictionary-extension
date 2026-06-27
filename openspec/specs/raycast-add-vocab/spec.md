@@ -32,17 +32,17 @@ code:
 ---
 ### Requirement: Add Vocab saves to the shared vocab bank
 
-When a word with a successful lookup is confirmed, the system SHALL save it to the same Supabase `vocab_entries` bank used by the extension and web app, scoped to the signed-in user, and SHALL confirm success with a toast. Each save SHALL record one encounter with `url` set to the sentinel `"raycast://manual"`, a timestamp, and a sentence that is empty by default. The system SHALL provide a secondary "Add with sentence…" action that lets the user attach an example sentence to the encounter before saving.
+When a word with a successful lookup is confirmed, the system SHALL save it to the same Supabase `vocab_entries` bank used by the extension and web app, scoped to the signed-in user, and SHALL confirm success with a toast. Each save SHALL record one encounter with `url` set to the sentinel `"raycast://manual"` and a timestamp, and SHALL NOT attach a user-typed sentence to the encounter. The command SHALL NOT offer a secondary action for attaching an example sentence; the dictionary's own example sentence (already shown in the preview and stored on the saved definition) serves that role.
 
 #### Scenario: Save a new word
 
 - **WHEN** the user presses Enter on a found word that is not yet in the bank
-- **THEN** the system SHALL create a `vocab_entries` row for that user with the looked-up definition and one `raycast://manual` encounter, and SHALL show a success toast
+- **THEN** the system SHALL create a `vocab_entries` row for that user with the looked-up definition and one `raycast://manual` encounter carrying no sentence, and SHALL show a success toast
 
-#### Scenario: Save with an attached sentence
+#### Scenario: No attach-sentence action is offered
 
-- **WHEN** the user invokes "Add with sentence…", enters a sentence, and confirms
-- **THEN** the saved encounter SHALL carry that sentence and the `raycast://manual` sentinel url
+- **WHEN** the user views the actions for a found word
+- **THEN** the action panel SHALL NOT include an "Add with sentence…" action
 
 #### Scenario: Save failure is surfaced
 
@@ -51,11 +51,11 @@ When a word with a successful lookup is confirmed, the system SHALL save it to t
 
 
 <!-- @trace
-source: add-vocab-raycast
-updated: 2026-06-16
+source: raycast-show-dictionary-example
+updated: 2026-06-27
 code:
-  - dictionary-extension-prd.md
-  - raycast-add-vocab-prd.md
+  - packages/raycast/src/add-vocab.tsx
+  - packages/raycast/src/lib/vocab.ts
 -->
 
 ---
