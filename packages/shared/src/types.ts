@@ -23,7 +23,7 @@ export type LookupResult = WordDefinition | NotFound
 
 export type Encounter = {
   url: string
-  sentence: string
+  sentence?: string
   savedAt: number
 }
 

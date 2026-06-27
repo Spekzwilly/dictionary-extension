@@ -69,11 +69,18 @@ export async function lookupWord(word: string): Promise<LookupResult> {
     const allPhonetics = data.flatMap((e) => e.phonetics ?? [])
     const { audio, phonetic } = parsePhonetics(allPhonetics)
 
+    // dictionaryapi.dev usually leaves definitions[0].example empty — backfill from
+    // the first definition that has one, scanning all entries → meanings → definitions.
+    const example = data
+      .flatMap((e) => e.meanings ?? [])
+      .flatMap((m) => m.definitions ?? [])
+      .find((d) => d.example)?.example
+
     const result: WordDefinition = {
       word: entry.word ?? normalized,
       partOfSpeech: meaning.partOfSpeech ?? '',
       definition: def.definition,
-      example: def.example,
+      example,
       audio,
       phonetic,
     }
