@@ -1,14 +1,5 @@
 import { useState } from "react"
-import {
-  Action,
-  ActionPanel,
-  Form,
-  Icon,
-  List,
-  Toast,
-  showToast,
-  useNavigation,
-} from "@raycast/api"
+import { Action, ActionPanel, Icon, List, Toast, showToast } from "@raycast/api"
 import { usePromise } from "@raycast/utils"
 import { lookupWord } from "@dictionary/shared"
 import type { WordDefinition } from "@dictionary/shared"
@@ -25,10 +16,10 @@ function renderPreview(d: WordDefinition): string {
   return parts.join("\n")
 }
 
-async function handleSave(definition: WordDefinition, sentence: string): Promise<void> {
+async function handleSave(definition: WordDefinition): Promise<void> {
   const toast = await showToast({ style: Toast.Style.Animated, title: "Saving…" })
   try {
-    await saveWord(definition, sentence)
+    await saveWord(definition)
     toast.style = Toast.Style.Success
     toast.title = `Saved "${definition.word}"`
   } catch (error) {
@@ -36,32 +27,6 @@ async function handleSave(definition: WordDefinition, sentence: string): Promise
     toast.title = "Failed to save"
     toast.message = error instanceof Error ? error.message : String(error)
   }
-}
-
-function SentenceForm({ definition }: { definition: WordDefinition }) {
-  const { pop } = useNavigation()
-  return (
-    <Form
-      actions={
-        <ActionPanel>
-          <Action.SubmitForm
-            title="Save with Sentence"
-            onSubmit={async (values: { sentence: string }) => {
-              await handleSave(definition, values.sentence ?? "")
-              pop()
-            }}
-          />
-        </ActionPanel>
-      }
-    >
-      <Form.Description text={`Adding "${definition.word}" to your vocab bank.`} />
-      <Form.TextArea
-        id="sentence"
-        title="Example sentence"
-        placeholder="Optional — a sentence where you saw this word"
-      />
-    </Form>
-  )
 }
 
 export default function AddVocabCommand() {
@@ -115,8 +80,8 @@ export default function AddVocabCommand() {
     revalidateAuth()
   }
 
-  async function saveAndRefresh(definition: WordDefinition, sentence: string): Promise<void> {
-    await handleSave(definition, sentence)
+  async function saveAndRefresh(definition: WordDefinition): Promise<void> {
+    await handleSave(definition)
     // A session may have just been (re)established during save.
     revalidateAuth()
   }
@@ -177,12 +142,7 @@ export default function AddVocabCommand() {
               <Action
                 title="Save to Vocab Bank"
                 icon={Icon.Plus}
-                onAction={() => saveAndRefresh(data.definition, "")}
-              />
-              <Action.Push
-                title="Add with Sentence…"
-                icon={Icon.Text}
-                target={<SentenceForm definition={data.definition} />}
+                onAction={() => saveAndRefresh(data.definition)}
               />
               {signOutAction}
             </ActionPanel>
