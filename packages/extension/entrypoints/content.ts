@@ -19,15 +19,6 @@ export default defineContentScript({
     let reactRoot: Root | null = null
     let underlineSpan: HTMLSpanElement | null = null
 
-    function getSurroundingSentence(selection: Selection): string {
-      const range = selection.getRangeAt(0)
-      const text = range.startContainer.textContent ?? ''
-      const offset = range.startOffset
-      const start = Math.max(0, text.lastIndexOf('.', offset - 1) + 1)
-      const end = text.indexOf('.', offset + range.toString().length)
-      return text.slice(start, end === -1 ? undefined : end + 1).trim()
-    }
-
     function removeUnderline() {
       if (underlineSpan && underlineSpan.parentNode) {
         const parent = underlineSpan.parentNode
@@ -65,7 +56,7 @@ export default defineContentScript({
       reactRoot = null
     }
 
-    function PopupWrapper({ word, url, sentence }: { word: string; url: string; sentence: string }) {
+    function PopupWrapper({ word, url }: { word: string; url: string }) {
       const [popupState, setPopupState] = useState<WordDefinition | NotFound | Loading>({ type: 'loading' })
       const [saved, setSaved] = useState(false)
       const [signedIn, setSignedIn] = useState(false)
@@ -90,7 +81,7 @@ export default defineContentScript({
 
       function handleSave() {
         if ('type' in popupState) return
-        saveWord(popupState, { url, sentence }).then(() => setSaved(true))
+        saveWord(popupState, { url, sentence: '' }).then(() => setSaved(true))
       }
 
       // Content scripts can't open tabs via chrome.tabs, so open the web app
@@ -111,7 +102,7 @@ export default defineContentScript({
       })
     }
 
-    function mountPopup(word: string, x: number, y: number, url: string, sentence: string) {
+    function mountPopup(word: string, x: number, y: number, url: string) {
       closePopup()
 
       shadowHost = document.createElement('div')
@@ -134,7 +125,7 @@ export default defineContentScript({
       shadowRoot.appendChild(container)
 
       reactRoot = createRoot(container)
-      reactRoot.render(createElement(PopupWrapper, { word, url, sentence }))
+      reactRoot.render(createElement(PopupWrapper, { word, url }))
     }
 
     document.addEventListener('mouseup', async (e) => {
@@ -156,8 +147,7 @@ export default defineContentScript({
 
       addUnderline(selection)
 
-      const sentence = getSurroundingSentence(selection)
-      mountPopup(word, rect.left, rect.bottom, document.location.href, sentence)
+      mountPopup(word, rect.left, rect.bottom, document.location.href)
     })
 
     document.addEventListener('mousedown', (e) => {

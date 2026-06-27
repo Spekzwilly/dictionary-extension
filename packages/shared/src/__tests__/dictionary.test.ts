@@ -38,6 +38,55 @@ describe('lookupWord', () => {
     expect('type' in result).toBe(false)
   })
 
+  it('backfills example from a later definition when the first has none', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          word: 'ephemeral',
+          meanings: [
+            {
+              partOfSpeech: 'adjective',
+              definitions: [
+                { definition: 'lasting a very short time' },
+                { definition: 'another sense' },
+                { definition: 'a third sense', example: 'the ephemeral joys of childhood' },
+              ],
+            },
+          ],
+        },
+      ],
+    }))
+
+    const result = await lookupWord('ephemeral')
+    if ('type' in result) throw new Error('expected definition')
+    expect(result.definition).toBe('lasting a very short time')
+    expect(result.example).toBe('the ephemeral joys of childhood')
+  })
+
+  it('leaves example undefined when no definition has one', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          word: 'plain',
+          meanings: [
+            {
+              partOfSpeech: 'adjective',
+              definitions: [{ definition: 'a' }, { definition: 'b' }],
+            },
+          ],
+        },
+      ],
+    }))
+
+    const result = await lookupWord('plain')
+    if ('type' in result) throw new Error('expected definition')
+    expect(result.example).toBeUndefined()
+  })
+
   it('returns NotFound when API responds with 404', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
