@@ -10,7 +10,7 @@ npm workspaces monorepo:
 
 | Package | Path | Purpose |
 |---------|------|---------|
-| `@dictionary/shared` | `packages/shared/` | Shared types (`VocabEntry`, `Encounter`, `DefinitionData`) + review-session logic + dictionary lookup (`lookupWord`) + encounter merge (`mergeEncounters`) |
+| `@dictionary/shared` | `packages/shared/` | Shared types (`VocabEntry`, `Encounter`, `DefinitionData`) + review-session logic + dictionary lookup (`lookupWord`, Merriam-Webster Learner's + `dictionaryapi.dev` fallback) + encounter merge (`mergeEncounters`) |
 | `@dictionary/extension` | `packages/extension/` | Chrome extension (WXT + React) |
 | `@dictionary/web` | `packages/web/` | PWA web app (React + Vite + Tailwind) |
 | `dictionary-vocab` | `packages/raycast/` | Raycast extension — **Add Vocab** command (capture words from anywhere) |
@@ -23,7 +23,7 @@ Signing in is **required to save** — saved words sync to the cloud so you can 
 
 1. **Install** the extension and click its toolbar icon.
 2. The popup shows **Sign in with Google**. Click it → a Google OAuth window opens → consent → the window closes and the popup shows your vocab status.
-3. **Look up a word:** select 1–3 words on any page → a popup shows the definition, part of speech, and an example.
+3. **Look up a word:** select 1–3 words on any page → a popup shows the part of speech and the word's senses, each with example sentences.
    - Signed in → **Save to Vocab Bank** (records the word, the page URL, and the surrounding sentence).
    - Signed out → **Sign in with Google to save** (no anonymous local-only saving).
 4. The toolbar popup (signed in) shows: **vocab count**, **Open Vocab Bank**, **Review →**, and **Sign out**. "Open Vocab Bank" and "Review →" open the deployed standalone web app (above) in a new tab.
@@ -32,13 +32,17 @@ Signing in is **required to save** — saved words sync to the cloud so you can 
 
 The same word can be saved from multiple articles — each save appends an *encounter*, so review shows you every real sentence you met it in, not a generic example.
 
+### Dictionary source
+
+Lookups come from the **Merriam-Webster Learner's Dictionary** (clear, learner-oriented definitions with multiple senses and example sentences). The M-W API key never ships in any client build — every surface calls a thin **Supabase Edge Function proxy** (`supabase/functions/mw-lookup/`) that holds the key as a secret, authed with the Supabase anon key. M-W senses are scoped to the looked-up word and capped at the 6 most frequent. When M-W has no entry (or the proxy is unreachable), lookup falls back to the keyless [`dictionaryapi.dev`](https://dictionaryapi.dev) — so a proxy outage degrades richness but never breaks lookup. All parsing lives in `@dictionary/shared` (`lookupWord`); stored single-definition entries normalize to senses on read, with no data migration.
+
 ## Add Vocab from Raycast
 
 The `packages/raycast/` extension adds a launcher-speed way to save a word from **anywhere** (not just the browser), writing to the same Supabase bank.
 
 1. Run **Add Vocab** in Raycast.
 2. Signed out → a **Sign in with Google** screen; press Enter to run OAuth.
-3. Type a word → it's looked up in the same dictionary → a preview shows the definition.
+3. Type a word → it's looked up in the same dictionary → a preview shows its senses with example sentences.
 4. **Enter** saves it. "Add with sentence…" optionally attaches an example sentence. Already-saved words show an "Already saved" hint and just append a new encounter.
 
 Manually-added words record a `raycast://manual` encounter, so the web bank labels them **"Added in Raycast"** instead of a source link.
@@ -81,6 +85,14 @@ VITE_SUPABASE_ANON_KEY=<anon key from Supabase Dashboard → Settings → API>
 ```
 
 The Raycast extension (`packages/raycast/`) doesn't use `.env` — it reads the **Supabase URL** (defaulted) and **Anon Key** from its Raycast command **preferences** instead.
+
+The `mw-lookup` Edge Function needs the Merriam-Webster Learner's API key set as a Supabase secret (not in any `.env`):
+
+```bash
+supabase secrets set MW_API_KEY=<learners-dictionary-key>
+supabase functions deploy mw-lookup
+```
+
 
 ## Conventions
 
