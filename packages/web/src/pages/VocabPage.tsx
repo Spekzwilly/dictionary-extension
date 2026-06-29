@@ -98,6 +98,7 @@ export default function VocabPage() {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   async function loadWords() {
     const { data } = await supabase
@@ -113,8 +114,10 @@ export default function VocabPage() {
     loadWords()
   }, [user])
 
-  async function handleDelete(word: string) {
-    if (!confirm(`Delete "${word}" from your vocab bank?`)) return
+  async function confirmDelete() {
+    const word = pendingDelete
+    if (!word) return
+    setPendingDelete(null)
     setWords(prev => prev.filter(w => w.word !== word))
     const { error } = await supabase.from('vocab_entries').delete().eq('word', word)
     if (error) {
@@ -186,12 +189,43 @@ export default function VocabPage() {
                 entry={entry}
                 expanded={expanded === entry.word}
                 onToggle={() => setExpanded(prev => prev === entry.word ? null : entry.word)}
-                onDelete={() => handleDelete(entry.word)}
+                onDelete={() => setPendingDelete(entry.word)}
               />
             ))
           )}
         </div>
       </div>
+
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Delete word?</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              "{pendingDelete}" and all its saved encounters will be permanently removed.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setPendingDelete(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
