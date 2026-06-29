@@ -349,6 +349,66 @@ describe('lookupWord with Merriam-Webster proxy', () => {
     expect(result).toEqual({ type: 'not-found', word: 'xyznonexistent' })
   })
 
+  it('caps the number of senses returned from M-W', async () => {
+    const manySenses = Array.from({ length: 20 }, (_, i) => [
+      'sense',
+      { dt: [['text', `{bc}sense ${i} `]] },
+    ])
+    const fixture = [
+      {
+        meta: { id: 'run', stems: ['run'] },
+        hwi: { hw: 'run' },
+        fl: 'verb',
+        def: [{ sseq: [manySenses] }],
+      },
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => fixture,
+    }))
+
+    const result = await lookupWord('run', { mwProxyUrl: MW_PROXY, mwApiKey: 'anon' })
+    if ('type' in result) throw new Error('expected definition')
+    expect(result.senses).toHaveLength(6)
+  })
+
+  it('ignores M-W entries that are not about the looked-up word (phrases, idioms)', async () => {
+    // M-W returns the headword plus phrase/idiom entries where the word only
+    // appears in a stem — only the headword's senses should survive.
+    const polluted = [
+      {
+        meta: { id: 'happy', stems: ['happy', 'happier', 'happiest'] },
+        hwi: { hw: 'hap*py' },
+        fl: 'adjective',
+        def: [{ sseq: [[['sense', { dt: [['text', '{bc}feeling pleasure ']] }]]] }],
+      },
+      {
+        meta: { id: 'happy hour', stems: ['happy hour', 'happy hours'] },
+        hwi: { hw: 'happy hour' },
+        fl: 'noun',
+        def: [{ sseq: [[['sense', { dt: [['text', '{bc}a period at a bar ']] }]]] }],
+      },
+      {
+        meta: { id: 'clam:1', stems: ['clam', '(as) happy as a clam'] },
+        hwi: { hw: 'clam' },
+        fl: 'noun',
+        def: [{ sseq: [[['sense', { dt: [['text', '{bc}a kind of shellfish ']] }]]] }],
+      },
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => polluted,
+    }))
+
+    const result = await lookupWord('happy', { mwProxyUrl: MW_PROXY, mwApiKey: 'anon' })
+    if ('type' in result) throw new Error('expected definition')
+    expect(result.partOfSpeech).toBe('adjective')
+    expect(result.senses).toHaveLength(1)
+    expect(result.senses[0].definition).toBe('feeling pleasure')
+  })
+
   it('falls back when the proxy returns a non-2xx response', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: false, status: 500 })
