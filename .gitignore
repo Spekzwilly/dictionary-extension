@@ -36,3 +36,4 @@ dist-ssr
 .spectra/
 openspec/.vector-search.db*
 .vercel
+supabase/.temp/

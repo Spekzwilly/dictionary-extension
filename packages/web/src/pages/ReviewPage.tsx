@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { VocabEntry } from '@dictionary/shared'
-import { createSession, rateCard, isSessionComplete, currentCard } from '@dictionary/shared'
+import { createSession, rateCard, isSessionComplete, currentCard, normalizeDefinition } from '@dictionary/shared'
 import type { SessionState } from '@dictionary/shared'
 import { useAuth } from '../lib/auth'
 import { supabase } from '../lib/supabase'
@@ -92,6 +92,8 @@ export default function ReviewPage() {
   }
 
   const card = currentCard(session)!
+  const def = normalizeDefinition(card.definition)
+  const multi = def.senses.length > 1
   const doneCount = session.done.length
 
   return (
@@ -131,18 +133,27 @@ export default function ReviewPage() {
             <div className="flex items-baseline gap-2 mb-2">
               <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">{card.word}</h2>
               <span className="text-xs font-medium text-indigo-500 uppercase tracking-wider">
-                {card.definition.partOfSpeech}
+                {def.partOfSpeech}
               </span>
             </div>
             <div className="mb-4">
               <PronounceButton word={card.word} />
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed mb-3">{card.definition.definition}</p>
-            {card.definition.example && (
-              <p className="text-xs text-gray-400 italic leading-relaxed border-l-2 border-gray-100 pl-3 mb-5">
-                "{card.definition.example}"
-              </p>
-            )}
+            <div className="mb-5 space-y-3">
+              {def.senses.map((sense, i) => (
+                <div key={i}>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {multi && <span className="text-gray-400 font-medium mr-1">{i + 1}.</span>}
+                    {sense.definition}
+                  </p>
+                  {sense.examples?.map((ex, j) => (
+                    <p key={j} className="text-xs text-gray-400 italic leading-relaxed border-l-2 border-gray-100 pl-3 mt-1">
+                      "{ex}"
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
             <div className="mb-5">
               <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-2">
                 Seen {card.encounters.length}× in the wild

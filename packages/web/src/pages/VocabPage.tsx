@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { VocabEntry } from '@dictionary/shared'
-import { MANUAL_ENCOUNTER_URL } from '@dictionary/shared'
+import { MANUAL_ENCOUNTER_URL, normalizeDefinition } from '@dictionary/shared'
 import { useAuth, signOut } from '../lib/auth'
 import { supabase } from '../lib/supabase'
 import { cn } from '../lib/utils'
@@ -13,6 +13,8 @@ function formatDate(ts: number) {
 
 function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: boolean; onToggle: () => void }) {
   const latest = entry.encounters[entry.encounters.length - 1]
+  const def = normalizeDefinition(entry.definition)
+  const multi = def.senses.length > 1
   return (
     <div className="border-b border-gray-100 last:border-0">
       <div className="w-full px-5 py-4 hover:bg-gray-50 transition-colors flex items-start gap-4">
@@ -20,10 +22,10 @@ function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: b
           <div className="flex items-baseline gap-2 mb-1">
             <span className="font-semibold text-gray-900">{entry.word}</span>
             <span className="text-xs text-indigo-400 font-medium uppercase tracking-wide">
-              {entry.definition.partOfSpeech}
+              {def.partOfSpeech}
             </span>
           </div>
-          <p className="text-sm text-gray-500 truncate">{entry.definition.definition}</p>
+          <p className="text-sm text-gray-500 truncate">{def.senses[0].definition}</p>
         </button>
         <PronounceButton word={entry.word} />
         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -39,12 +41,21 @@ function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: b
 
       {expanded && (
         <div className="px-5 pb-4 bg-gray-50">
-          <p className="text-sm text-gray-700 leading-relaxed mb-3">{entry.definition.definition}</p>
-          {entry.definition.example && (
-            <p className="text-xs text-gray-400 italic border-l-2 border-gray-200 pl-3 mb-4">
-              "{entry.definition.example}"
-            </p>
-          )}
+          <div className="mb-4 space-y-3">
+            {def.senses.map((sense, i) => (
+              <div key={i}>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {multi && <span className="text-gray-400 font-medium mr-1">{i + 1}.</span>}
+                  {sense.definition}
+                </p>
+                {sense.examples?.map((ex, j) => (
+                  <p key={j} className="text-xs text-gray-400 italic border-l-2 border-gray-200 pl-3 mt-1">
+                    "{ex}"
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
           <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-2">Saved from</p>
           <div className="space-y-2">
             {entry.encounters.map((enc, i) => (
@@ -84,7 +95,7 @@ export default function VocabPage() {
 
   const filtered = words.filter(w =>
     w.word.toLowerCase().includes(search.toLowerCase()) ||
-    w.definition.definition.toLowerCase().includes(search.toLowerCase())
+    normalizeDefinition(w.definition).senses[0].definition.toLowerCase().includes(search.toLowerCase())
   )
 
   return (

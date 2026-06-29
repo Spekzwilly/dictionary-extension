@@ -5,7 +5,7 @@ import type { VocabEntry } from '@dictionary/shared'
 function makeWords(n: number): VocabEntry[] {
   return Array.from({ length: n }, (_, i) => ({
     word: `word${i}`,
-    definition: { word: `word${i}`, partOfSpeech: 'noun', definition: `def${i}` },
+    definition: { word: `word${i}`, partOfSpeech: 'noun', senses: [{ definition: `def${i}` }], definition: `def${i}` },
     encounters: [{ url: 'https://example.com', sentence: `sentence ${i}`, savedAt: Date.now() }],
   }))
 }
