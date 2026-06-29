@@ -1,19 +1,35 @@
 import { useState } from "react"
-import { Action, ActionPanel, Icon, List, Toast, showToast } from "@raycast/api"
+import { Action, ActionPanel, Icon, List, Toast, getPreferenceValues, showToast } from "@raycast/api"
 import { usePromise } from "@raycast/utils"
-import { lookupWord } from "@dictionary/shared"
+import { lookupWord, normalizeDefinition } from "@dictionary/shared"
 import type { WordDefinition } from "@dictionary/shared"
 import { getSession, signIn, signOut } from "./lib/auth"
 import { getEntry, saveWord } from "./lib/vocab"
+
+interface Preferences {
+  supabaseUrl: string
+  supabaseAnonKey: string
+}
+
+// M-W proxy config from the same Supabase preferences the rest of the extension
+// uses — the proxy URL is derived from the Supabase URL, authed with the anon key.
+const { supabaseUrl, supabaseAnonKey } = getPreferenceValues<Preferences>()
+const mwProxyUrl = `${supabaseUrl}/functions/v1/mw-lookup`
 
 type LookupState =
   | { kind: "not-found"; word: string }
   | { kind: "found"; definition: WordDefinition; alreadySaved: boolean }
 
-function renderPreview(d: WordDefinition): string {
-  const parts = [`# ${d.word}`, "", `*${d.partOfSpeech}*`, "", d.definition]
-  if (d.example) parts.push("", `> ${d.example}`)
-  return parts.join("\n")
+function renderPreview(raw: WordDefinition): string {
+  const d = normalizeDefinition(raw)
+  const multi = d.senses.length > 1
+  const parts = [`# ${d.word}`, "", `*${d.partOfSpeech}*`, ""]
+  d.senses.forEach((sense, i) => {
+    parts.push(multi ? `${i + 1}. ${sense.definition}` : sense.definition)
+    sense.examples?.forEach((ex) => parts.push("", `> ${ex}`))
+    parts.push("")
+  })
+  return parts.join("\n").trimEnd()
 }
 
 async function handleSave(definition: WordDefinition): Promise<void> {
@@ -44,7 +60,7 @@ export default function AddVocabCommand() {
       const trimmed = text.trim()
       if (!trimmed) return null
 
-      const result = await lookupWord(trimmed)
+      const result = await lookupWord(trimmed, { mwProxyUrl, mwApiKey: supabaseAnonKey })
       if ("type" in result) return { kind: "not-found", word: trimmed }
 
       let alreadySaved = false

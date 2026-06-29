@@ -30,6 +30,7 @@ import type { WordDefinition } from '@dictionary/shared'
 const DEF: WordDefinition = {
   word: 'ephemeral',
   partOfSpeech: 'adjective',
+  senses: [{ definition: 'Lasting for a very short time.', examples: ['Ephemeral trends come and go.'] }],
   definition: 'Lasting for a very short time.',
   example: 'Ephemeral trends come and go.',
 }

@@ -1,5 +1,57 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { lookupWord } from '../dictionary'
+import { lookupWord, normalizeDefinition } from '../dictionary'
+import type { WordDefinition } from '../types'
+
+const MW_PROXY = 'https://x.supabase.co/functions/v1/mw-lookup'
+
+// A realistic M-W Learner's payload: one entry, three senses (two with example
+// `vis` blocks, one text-only), plus an unknown sseq node type to be skipped.
+const MOCK_MW = [
+  {
+    hwi: { hw: 'happy' },
+    fl: 'adjective',
+    def: [
+      {
+        sseq: [
+          [
+            [
+              'sense',
+              {
+                sn: '1',
+                dt: [
+                  ['text', '{bc}feeling or showing pleasure '],
+                  ['vis', [{ t: 'a {it}happy{/it} child' }, { t: "I'm so {it}happy{/it} to see you." }]],
+                ],
+              },
+            ],
+          ],
+          [
+            [
+              'sense',
+              {
+                sn: '2',
+                dt: [
+                  ['text', '{bc}lucky or fortunate '],
+                  ['vis', [{ t: 'a {it}happy{/it} coincidence' }]],
+                ],
+              },
+            ],
+            ['xyz_unknown_node', { foo: 'bar' }],
+          ],
+          [
+            [
+              'sense',
+              {
+                sn: '3',
+                dt: [['text', '{bc}willing to do something ']],
+              },
+            ],
+          ],
+        ],
+      },
+    ],
+  },
+]
 
 const MOCK_VALID = [
   {
@@ -192,5 +244,155 @@ describe('lookupWord', () => {
     if ('type' in result) throw new Error('expected definition')
     expect(result.audio).toBeUndefined()
     expect(result.phonetic).toBeUndefined()
+  })
+
+  it('populates senses on the dictionaryapi.dev fallback with a backfilled example', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          word: 'ephemeral',
+          meanings: [
+            {
+              partOfSpeech: 'adjective',
+              definitions: [
+                { definition: 'lasting a very short time' },
+                { definition: 'a third sense', example: 'the ephemeral joys of childhood' },
+              ],
+            },
+          ],
+        },
+      ],
+    }))
+
+    const result = await lookupWord('ephemeral')
+    if ('type' in result) throw new Error('expected definition')
+    expect(result.senses).toEqual([
+      { definition: 'lasting a very short time', examples: ['the ephemeral joys of childhood'] },
+    ])
+  })
+})
+
+describe('lookupWord with Merriam-Webster proxy', () => {
+  it('parses an M-W multi-sense entry, skipping unknown node types', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => MOCK_MW,
+    }))
+
+    const result = await lookupWord('happy', { mwProxyUrl: MW_PROXY, mwApiKey: 'anon' })
+    if ('type' in result) throw new Error('expected definition')
+    expect(result.partOfSpeech).toBe('adjective')
+    expect(result.senses).toHaveLength(3)
+    expect(result.senses[0]).toEqual({
+      definition: 'feeling or showing pleasure',
+      examples: ['a happy child', "I'm so happy to see you."],
+    })
+    expect(result.senses[1].examples).toEqual(['a happy coincidence'])
+    // A sense without `vis` carries no examples.
+    expect(result.senses[2].examples).toBeUndefined()
+  })
+
+  it('calls the proxy at <mwProxyUrl>?word= with the anon key header', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => MOCK_MW,
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await lookupWord('happy', { mwProxyUrl: MW_PROXY, mwApiKey: 'anon-key' })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe(`${MW_PROXY}?word=happy`)
+    expect(init.headers.apikey).toBe('anon-key')
+    expect(init.headers.Authorization).toBe('Bearer anon-key')
+  })
+
+  it('falls back to dictionaryapi.dev when M-W returns suggestions', async () => {
+    const fetchMock = vi.fn()
+      // M-W not-found → array of suggestion strings
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ['happy', 'harpy'] })
+      // dictionaryapi.dev hit
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => MOCK_VALID })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await lookupWord('ephemeral', { mwProxyUrl: MW_PROXY, mwApiKey: 'anon' })
+    if ('type' in result) throw new Error('expected definition')
+    expect(result.senses[0].definition).toBe('Lasting for a very short time.')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips M-W entirely when no mwProxyUrl is configured', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => MOCK_VALID,
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await lookupWord('ephemeral')
+    if ('type' in result) throw new Error('expected definition')
+    // Only the fallback was hit; the proxy URL never appears.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toContain('dictionaryapi.dev')
+  })
+
+  it('returns NotFound when both M-W and the fallback miss', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ['xyz'] })
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await lookupWord('xyznonexistent', { mwProxyUrl: MW_PROXY, mwApiKey: 'anon' })
+    expect(result).toEqual({ type: 'not-found', word: 'xyznonexistent' })
+  })
+
+  it('falls back when the proxy returns a non-2xx response', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => MOCK_VALID })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await lookupWord('ephemeral', { mwProxyUrl: MW_PROXY, mwApiKey: 'anon' })
+    if ('type' in result) throw new Error('expected definition')
+    expect(result.senses[0].definition).toBe('Lasting for a very short time.')
+  })
+})
+
+describe('normalizeDefinition', () => {
+  it('synthesizes a one-element senses array from legacy fields', () => {
+    const legacy = {
+      word: 'ephemeral',
+      partOfSpeech: 'adjective',
+      definition: 'lasting a very short time',
+      example: 'the ephemeral joys of childhood',
+    } as unknown as WordDefinition // old stored shape lacks `senses`
+
+    const result = normalizeDefinition(legacy)
+    expect(result.senses).toEqual([
+      { definition: 'lasting a very short time', examples: ['the ephemeral joys of childhood'] },
+    ])
+  })
+
+  it('omits examples when the legacy entry has no example', () => {
+    const legacy = {
+      word: 'plain',
+      partOfSpeech: 'adjective',
+      definition: 'simple',
+    } as unknown as WordDefinition
+
+    const result = normalizeDefinition(legacy)
+    expect(result.senses).toEqual([{ definition: 'simple', examples: undefined }])
+  })
+
+  it('leaves an already-normalized definition untouched', () => {
+    const def: WordDefinition = {
+      word: 'happy',
+      partOfSpeech: 'adjective',
+      senses: [{ definition: 'glad', examples: ['a happy child'] }],
+    }
+    expect(normalizeDefinition(def)).toBe(def)
   })
 })

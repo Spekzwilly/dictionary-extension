@@ -1,4 +1,5 @@
 import type { WordDefinition, NotFound, Loading } from '@dictionary/shared'
+import { normalizeDefinition } from '@dictionary/shared'
 import { cn } from '../utils'
 import { PronounceControls } from './PronounceControls'
 
@@ -31,7 +32,8 @@ export function DefinitionPopup({ state, onSave, saved, signedIn, onSignIn, sign
     )
   }
 
-  const def = state as WordDefinition
+  const def = normalizeDefinition(state as WordDefinition)
+  const multi = def.senses.length > 1
   return (
     <div className="bg-white rounded-xl shadow-2xl border border-gray-100 p-5 w-72">
       <div className="flex items-start justify-between mb-2">
@@ -41,12 +43,21 @@ export function DefinitionPopup({ state, onSave, saved, signedIn, onSignIn, sign
         </div>
       </div>
       <PronounceControls def={def} />
-      <p className="text-sm text-gray-700 leading-relaxed mb-3 mt-2">{def.definition}</p>
-      {def.example && (
-        <p className="text-xs text-gray-400 italic leading-relaxed border-l-2 border-gray-100 pl-3 mb-4">
-          "{def.example}"
-        </p>
-      )}
+      <div className="mt-2 mb-4 space-y-3">
+        {def.senses.map((sense, i) => (
+          <div key={i}>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              {multi && <span className="text-gray-400 font-medium mr-1">{i + 1}.</span>}
+              {sense.definition}
+            </p>
+            {sense.examples?.map((ex, j) => (
+              <p key={j} className="text-xs text-gray-400 italic leading-relaxed border-l-2 border-gray-100 pl-3 mt-1">
+                "{ex}"
+              </p>
+            ))}
+          </div>
+        ))}
+      </div>
       {signedIn ? (
         <button
           onClick={onSave}

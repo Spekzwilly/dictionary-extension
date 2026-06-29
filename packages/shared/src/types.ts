@@ -5,11 +5,14 @@ export type AccentAudio = {
 
 export type Accent = 'us' | 'uk'
 
+export type Sense = { definition: string; examples?: string[] }
+
 export type WordDefinition = {
   word: string
   partOfSpeech: string
-  definition: string
-  example?: string
+  senses: Sense[]
+  definition?: string // legacy, superseded by senses — kept for back-compat
+  example?: string // legacy, superseded by senses[0].examples
   audio?: AccentAudio
   phonetic?: string
 }
