@@ -2,6 +2,10 @@ import type { WordDefinition, NotFound, LookupResult, AccentAudio, Sense } from 
 
 const API_BASE = 'https://api.dictionaryapi.dev/api/v2/entries/en'
 
+// Cap M-W senses shown per word — common words return dozens; the top few
+// (M-W orders by frequency) are what's useful and keep the UI compact.
+const MAX_SENSES = 6
+
 export type LookupOptions = {
   mwProxyUrl?: string
   mwApiKey?: string
@@ -39,7 +43,23 @@ export function normalizeDefinition(raw: WordDefinition): WordDefinition {
 type MwEntry = {
   fl?: string
   hwi?: { hw?: string }
+  meta?: { id?: string; stems?: string[] }
   def?: Array<{ sseq?: unknown }>
+}
+
+// A single M-W query returns many entries: the headword itself (one per part of
+// speech), plus phrases (`happy hour`), idioms, and unrelated entries where the
+// word merely appears in a stem (`as happy as a clam`). Keep only entries that
+// are *about* the looked-up word — its exact form/inflection — so we don't
+// flatten dozens of irrelevant senses.
+function entryMatchesWord(e: MwEntry, word: string): boolean {
+  const stems = Array.isArray(e.meta?.stems)
+    ? e.meta!.stems!.map((s) => String(s).toLowerCase())
+    : []
+  if (stems.includes(word)) return true
+  const id = String(e.meta?.id ?? '').split(':')[0].toLowerCase()
+  const hw = String(e.hwi?.hw ?? '').replace(/\*/g, '').toLowerCase()
+  return id === word || hw === word
 }
 
 // M-W defining text is littered with formatting tokens: {bc} (bold colon),
@@ -123,10 +143,17 @@ async function lookupViaMw(
     // M-W returns an array of suggestion strings when the word is not found.
     if (typeof data[0] === 'string') return null
 
-    const entries = data.filter(
+    const allEntries = data.filter(
       (e): e is MwEntry => !!e && typeof e === 'object'
     )
-    const senses = entries.flatMap(parseMwSenses)
+    // Restrict to entries about the looked-up word; if none match (the word is
+    // only an idiom fragment here), fall through to dictionaryapi.dev.
+    const entries = allEntries.filter((e) => entryMatchesWord(e, word))
+    if (entries.length === 0) return null
+
+    // Common words (run, set) carry 30–60+ senses — cap to the most frequent
+    // few (M-W orders senses by frequency) to keep every surface's UI compact.
+    const senses = entries.flatMap(parseMwSenses).slice(0, MAX_SENSES)
     if (senses.length === 0) return null
 
     const headword = entries[0]?.hwi?.hw?.replace(/\*/g, '') || word
