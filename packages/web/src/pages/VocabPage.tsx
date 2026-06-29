@@ -11,7 +11,7 @@ function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: boolean; onToggle: () => void }) {
+function WordRow({ entry, expanded, onToggle, onDelete }: { entry: VocabEntry; expanded: boolean; onToggle: () => void; onDelete: () => void }) {
   const latest = entry.encounters[entry.encounters.length - 1]
   const def = normalizeDefinition(entry.definition)
   const multi = def.senses.length > 1
@@ -28,6 +28,13 @@ function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: b
           <p className="text-sm text-gray-500 truncate">{def.senses[0].definition}</p>
         </button>
         <PronounceButton word={entry.word} />
+        <button
+          onClick={onDelete}
+          aria-label={`Delete ${entry.word}`}
+          className="flex items-center justify-center w-7 h-7 rounded-full text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+        >
+          <TrashIcon />
+        </button>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <span className="text-xs text-gray-400">{entry.encounters.length}× encountered</span>
           {latest && <span className="text-xs text-gray-300">{formatDate(latest.savedAt)}</span>}
@@ -74,6 +81,17 @@ function WordRow({ entry, expanded, onToggle }: { entry: VocabEntry; expanded: b
   )
 }
 
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  )
+}
+
 export default function VocabPage() {
   const { user } = useAuth()
   const [words, setWords] = useState<VocabEntry[]>([])
@@ -81,17 +99,29 @@ export default function VocabPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!user) return
-    supabase
+  async function loadWords() {
+    const { data } = await supabase
       .from('vocab_entries')
       .select('word, definition, encounters')
       .order('updated_at', { ascending: false })
-      .then(({ data }) => {
-        setWords((data ?? []) as VocabEntry[])
-        setLoading(false)
-      })
+    setWords((data ?? []) as VocabEntry[])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    if (!user) return
+    loadWords()
   }, [user])
+
+  async function handleDelete(word: string) {
+    if (!confirm(`Delete "${word}" from your vocab bank?`)) return
+    setWords(prev => prev.filter(w => w.word !== word))
+    const { error } = await supabase.from('vocab_entries').delete().eq('word', word)
+    if (error) {
+      alert(`Could not delete "${word}". Please try again.`)
+      loadWords()
+    }
+  }
 
   const filtered = words.filter(w =>
     w.word.toLowerCase().includes(search.toLowerCase()) ||
@@ -156,6 +186,7 @@ export default function VocabPage() {
                 entry={entry}
                 expanded={expanded === entry.word}
                 onToggle={() => setExpanded(prev => prev === entry.word ? null : entry.word)}
+                onDelete={() => handleDelete(entry.word)}
               />
             ))
           )}
