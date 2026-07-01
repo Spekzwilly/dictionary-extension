@@ -16,7 +16,9 @@ function WordRow({ entry, expanded, onToggle, onDelete }: { entry: VocabEntry; e
   const def = normalizeDefinition(entry.definition)
   const multi = def.senses.length > 1
   return (
-    <div className="border-b border-gray-100 last:border-0">
+    // ponytail: content-visibility skips paint/layout for offscreen rows — handles render perf to ~10k words.
+    // Server pagination (.range + server-side search) only when the bank outgrows that.
+    <div className="border-b border-gray-100 last:border-0 [content-visibility:auto] [contain-intrinsic-size:auto_92px]">
       <div className="w-full px-5 py-4 hover:bg-gray-50 transition-colors flex items-start gap-4">
         <button className="flex-1 min-w-0 text-left cursor-pointer" onClick={onToggle}>
           <div className="flex items-baseline gap-2 mb-1">
