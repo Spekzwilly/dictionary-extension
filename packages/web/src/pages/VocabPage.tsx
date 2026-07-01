@@ -143,6 +143,12 @@ export default function VocabPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
+              to="/progress"
+              className="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2 transition-colors"
+            >
+              Progress
+            </Link>
+            <Link
               to="/review"
               className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
