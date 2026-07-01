@@ -37,6 +37,11 @@ export default function ReviewPage() {
 
   function handleRate(r: 'easy' | 'hard' | 'again') {
     if (!session) return
+    // en-CA gives YYYY-MM-DD in the browser's local timezone, so a late-night
+    // rate lands on the user's local day, not the UTC day. Fire-and-forget:
+    // the counter is best-effort and must not block the review flow.
+    const localDay = new Date().toLocaleDateString('en-CA')
+    void supabase.rpc('increment_review_activity', { p_day: localDay })
     setFlipped(false)
     setTimeout(() => setSession(s => s ? rateCard(s, r) : s), 100)
   }

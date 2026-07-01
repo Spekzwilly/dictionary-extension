@@ -3,6 +3,7 @@ import { useAuth } from './lib/auth'
 import LoginPage from './pages/LoginPage'
 import VocabPage from './pages/VocabPage'
 import ReviewPage from './pages/ReviewPage'
+import ProgressPage from './pages/ProgressPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/vocab" element={<ProtectedRoute><VocabPage /></ProtectedRoute>} />
         <Route path="/review" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
+        <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )
